@@ -5,4 +5,4 @@
    Example Railway URL: https://finternship-elite-crew-production.up.railway.app
    ═══════════════════════════════════════════════════════════ */
 
-window.BACKEND_URL = 'https://YOUR-RAILWAY-URL.up.railway.app';
+window.BACKEND_URL = 'https://hotel-aditya-api.onrender.com';
