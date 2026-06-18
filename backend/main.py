@@ -66,6 +66,10 @@ if DB_PATH != _BUNDLED_DB and not os.path.exists(DB_PATH) and os.path.exists(_BU
 # They must come from environment variables only.
 _SECRET_KEYS = {'openweather_api_key', 'gemini_api_key'}
 
+# In-memory key store: holds keys set via the Settings UI for the current session.
+# These are lost on server restart — set Render env vars for persistence.
+_RUNTIME_KEYS: dict = {}
+
 
 def _load_config() -> dict:
     """Load config.json, stripping any API keys so they are never read from disk."""
@@ -521,8 +525,8 @@ async def upload_pdf(file: UploadFile = File(...)):
             import fitz   # PyMuPDF
             import asyncio
             
-            # Read Gemini key from environment only — never from config.json
-            gemini_key = os.environ.get('GEMINI_API_KEY', '').strip()
+            # Read Gemini key: env var first (persistent), then runtime store (session-only)
+            gemini_key = os.environ.get('GEMINI_API_KEY', '').strip() or _RUNTIME_KEYS.get('gemini_api_key', '')
 
             # ── Known items from DB ────────────────────────────────────────────
             conn2       = _conn()
@@ -887,9 +891,9 @@ def get_settings():
     mi = get_model_info()
 
     return {
-        # Keys are env-var only — check env, not config.json
-        'openweather_key_set': bool(os.environ.get('OPENWEATHER_API_KEY', '').strip()),
-        'gemini_key_set':      bool(os.environ.get('GEMINI_API_KEY', '').strip()),
+        # Check env var first (persistent), then runtime in-memory store (session, set via Settings UI)
+        'openweather_key_set': bool(os.environ.get('OPENWEATHER_API_KEY', '').strip() or _RUNTIME_KEYS.get('openweather_api_key', '')),
+        'gemini_key_set':      bool(os.environ.get('GEMINI_API_KEY', '').strip() or _RUNTIME_KEYS.get('gemini_api_key', '')),
         'latitude':            cfg.get('latitude', None),
         'longitude':           cfg.get('longitude', None),
         'weather_source':      cfg.get('weather_source', 'mock'),
@@ -921,6 +925,8 @@ def save_settings(body: SettingsUpdate):
 
     if body.gemini_api_key is not None:
         updates['gemini_api_key'] = body.gemini_api_key
+        # Store in session memory (lost on restart — set GEMINI_API_KEY env var on Render for persistence)
+        _RUNTIME_KEYS['gemini_api_key'] = body.gemini_api_key.strip()
         # Reset model index so we start fresh with the new key
         try:
             from engine.gemini_ocr import reset_model_index
