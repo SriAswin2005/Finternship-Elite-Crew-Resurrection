@@ -1,0 +1,8 @@
+{
+  "openweather_api_key": "57dbbc8d1d8870b960d141e1d24c67f6",
+  "model_trained_at": "2026-06-18T20:43:52.825716",
+  "weather_source": "real",
+  "latitude": 26.513,
+  "longitude": 80.2338,
+  "gemini_api_key": "AQ.Ab8RN6KQjNEdHF95G5FZApJ0xLtKPtljomhEdEw7TFMi0cez7g"
+}
