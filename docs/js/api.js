@@ -3,12 +3,10 @@
    All API calls go here. Mock fallback when server is offline.
    ═══════════════════════════════════════════════════════════ */
 
-// Production backend URL (Render). Change this if you redeploy to a different service.
-const RENDER_BACKEND = 'https://hotel-aditya-api.onrender.com';
-
+// Backend URL is set in js/config.js — edit that file after deploying your backend.
 const BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
   ? 'http://localhost:8000'
-  : RENDER_BACKEND;
+  : (window.BACKEND_URL || 'https://YOUR-RAILWAY-URL.up.railway.app');
 
 const USE_MOCK = false;   // Set true to always use mock data
 
