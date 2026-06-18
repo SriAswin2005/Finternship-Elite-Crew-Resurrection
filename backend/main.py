@@ -62,17 +62,30 @@ if DB_PATH != _BUNDLED_DB and not os.path.exists(DB_PATH) and os.path.exists(_BU
 
 # ── Config helpers ─────────────────────────────────────────────────────────────
 
+# Keys that must NEVER be stored in or read from config.json.
+# They must come from environment variables only.
+_SECRET_KEYS = {'openweather_api_key', 'gemini_api_key'}
+
+
 def _load_config() -> dict:
+    """Load config.json, stripping any API keys so they are never read from disk."""
     try:
         with open(CONFIG_PATH, encoding='utf-8') as f:
-            return json.load(f)
+            cfg = json.load(f)
     except Exception:
-        return {}
+        cfg = {}
+    # Remove any secrets that may have leaked into config.json previously
+    for k in _SECRET_KEYS:
+        cfg.pop(k, None)
+    return cfg
 
 
 def _save_config(updates: dict) -> None:
+    """Persist non-secret settings to config.json. API keys are silently ignored."""
     cfg = _load_config()
-    cfg.update(updates)
+    # Strip secrets before writing — they must live in env vars only
+    safe_updates = {k: v for k, v in updates.items() if k not in _SECRET_KEYS}
+    cfg.update(safe_updates)
     with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
         json.dump(cfg, f, indent=2)
 
@@ -123,7 +136,13 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['*'],
+    allow_origins=[
+        'http://localhost:8000',
+        'http://localhost:5500',
+        'http://127.0.0.1:5500',
+        'https://harsha-mandala.github.io',  # GitHub Pages frontend
+        '*',                                  # Fallback for any other origin
+    ],
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
@@ -502,8 +521,8 @@ async def upload_pdf(file: UploadFile = File(...)):
             import fitz   # PyMuPDF
             import asyncio
             
-            cfg = _load_config()
-            gemini_key = cfg.get('gemini_api_key', '').strip()
+            # Read Gemini key from environment only — never from config.json
+            gemini_key = os.environ.get('GEMINI_API_KEY', '').strip()
 
             # ── Known items from DB ────────────────────────────────────────────
             conn2       = _conn()
@@ -868,8 +887,9 @@ def get_settings():
     mi = get_model_info()
 
     return {
-        'openweather_key_set': bool(cfg.get('openweather_api_key', '').strip()),
-        'gemini_key_set':      bool(cfg.get('gemini_api_key', '').strip()),
+        # Keys are env-var only — check env, not config.json
+        'openweather_key_set': bool(os.environ.get('OPENWEATHER_API_KEY', '').strip()),
+        'gemini_key_set':      bool(os.environ.get('GEMINI_API_KEY', '').strip()),
         'latitude':            cfg.get('latitude', None),
         'longitude':           cfg.get('longitude', None),
         'weather_source':      cfg.get('weather_source', 'mock'),

@@ -3,9 +3,12 @@
    All API calls go here. Mock fallback when server is offline.
    ═══════════════════════════════════════════════════════════ */
 
+// Production backend URL (Render). Change this if you redeploy to a different service.
+const RENDER_BACKEND = 'https://hotel-aditya-api.onrender.com';
+
 const BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
   ? 'http://localhost:8000'
-  : window.location.origin;
+  : RENDER_BACKEND;
 
 const USE_MOCK = false;   // Set true to always use mock data
 

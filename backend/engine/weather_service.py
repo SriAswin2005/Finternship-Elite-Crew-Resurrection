@@ -68,12 +68,8 @@ def _save_config(updates: dict) -> None:
 
 
 def _read_api_key() -> str:
-    """Read API key from config.json, fall back to environment variable."""
-    cfg = _load_config()
-    key = cfg.get('openweather_api_key', '').strip()
-    if not key:
-        key = os.environ.get('OPENWEATHER_API_KEY', '').strip()
-    return key
+    """Read API key from environment variable only. config.json must not store keys."""
+    return os.environ.get('OPENWEATHER_API_KEY', '').strip()
 
 
 def _get_coordinates() -> tuple:
@@ -96,11 +92,11 @@ API_KEY: str = _read_api_key()
 
 
 def update_api_key(new_key: str) -> None:
-    """Update API key in config.json and reload the module-level API_KEY."""
+    """Update the in-memory API key. Keys are never written to config.json."""
     global API_KEY
+    # Update the non-secret weather_source flag in config if needed
     try:
         cfg = _load_config()
-        cfg['openweather_api_key'] = new_key
         cfg['weather_source'] = 'real' if new_key.strip() else 'mock'
         with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
             json.dump(cfg, f, indent=2)

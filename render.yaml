@@ -9,7 +9,9 @@ services:
       - key: DB_PATH
         value: /data/hotel_aditya.db
       - key: OPENWEATHER_API_KEY
-        value: your_key_here
+        sync: false        # Set real value in Render dashboard → Environment
+      - key: GEMINI_API_KEY
+        sync: false        # Set real value in Render dashboard → Environment
     disk:
       name: hotel-data
       mountPath: /data
