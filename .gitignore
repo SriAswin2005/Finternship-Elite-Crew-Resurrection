@@ -13,12 +13,13 @@ build/
 venv/
 .venv/
 env/
+.env
 .env.local
 .env.production
 
 # Secrets — NEVER commit these
-# .env is committed only as a template with placeholder values
-# Real keys must be set as environment variables on Render dashboard
+# Use .env.example as a template (safe to commit — no real keys)
+# Set real keys in .env locally, or as env vars on Render dashboard
 
 # OS
 .DS_Store
@@ -36,3 +37,8 @@ desktop.ini
 # Temporary files
 *.tmp
 *.temp
+
+# Secrets — NEVER commit these files
+backend/config.json
+backend/*.db
+*.db
