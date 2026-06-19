@@ -144,8 +144,9 @@ app.add_middleware(
         'http://localhost:8000',
         'http://localhost:5500',
         'http://127.0.0.1:5500',
-        'https://harsha-mandala.github.io',  # GitHub Pages frontend
-        '*',                                  # Fallback for any other origin
+        'https://harsha-mandala.github.io',          # GitHub Pages frontend
+        'https://finternship-elite-crew.onrender.com', # Render backend (self-requests)
+        '*',                                           # Fallback for any other origin
     ],
     allow_credentials=True,
     allow_methods=['*'],

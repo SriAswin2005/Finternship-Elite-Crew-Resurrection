@@ -90,7 +90,7 @@ async function checkApiStatus() {
   const dot = document.getElementById('api-dot');
   if (!dot) return;
   try {
-    const res = await fetch(`${BASE_URL}/health`, { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(`${BASE_URL}/health`, { signal: AbortSignal.timeout(10000) });
     if (res.ok) {
       dot.classList.add('online');
       dot.classList.remove('offline');
