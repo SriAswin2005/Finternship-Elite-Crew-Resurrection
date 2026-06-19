@@ -40,5 +40,7 @@ desktop.ini
 
 # Secrets — NEVER commit these files
 backend/config.json
-backend/*.db
-*.db
+
+# SQLite journal files (transient, not needed in git)
+*.db-shm
+*.db-wal
