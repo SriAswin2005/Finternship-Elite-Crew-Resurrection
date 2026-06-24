@@ -17,6 +17,15 @@ import threading
 from datetime import date, timedelta, datetime
 from typing import List, Optional
 from math import ceil
+from zoneinfo import ZoneInfo
+
+IST = ZoneInfo('Asia/Kolkata')
+
+def get_today() -> date:
+    return datetime.now(IST).date()
+
+def get_today_str() -> str:
+    return get_today().isoformat()
 
 from fastapi import FastAPI, Query, APIRouter, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -223,7 +232,7 @@ def dashboard_summary():
     """
     Today's revenue, top-selling items, weather, and festival info.
     """
-    today = date.today().isoformat()
+    today = get_today_str()
     conn  = _conn()
 
     # Today's revenue and units sold
@@ -255,7 +264,7 @@ def dashboard_summary():
         from engine.weather_service import get_weather_for_date
         weather = get_weather_for_date(today)
         if weather is None:
-            weather = get_weather_for_date((date.today() + timedelta(days=1)).isoformat())
+            weather = get_weather_for_date((get_today() + timedelta(days=1)).isoformat())
     except Exception:
         pass
 
@@ -297,7 +306,7 @@ def dashboard_summary():
 def revenue_trend(days: int = Query(default=30, ge=1, le=365)):
     """Daily gross revenue for the last N days."""
     conn      = _conn()
-    cutoff    = (date.today() - timedelta(days=days)).isoformat()
+    cutoff    = (get_today() - timedelta(days=days)).isoformat()
     rows      = conn.execute(
         'SELECT date, ROUND(SUM(gross_revenue), 2) AS revenue '
         'FROM daily_sales WHERE date >= ? '
@@ -315,7 +324,7 @@ def revenue_trend(days: int = Query(default=30, ge=1, le=365)):
 def category_trends(days: int = Query(default=30, ge=1, le=365)):
     """Revenue and qty by category for the last N days."""
     conn   = _conn()
-    cutoff = (date.today() - timedelta(days=days)).isoformat()
+    cutoff = (get_today() - timedelta(days=days)).isoformat()
     rows   = conn.execute(
         'SELECT mi.category, '
         '       ROUND(SUM(ds.gross_revenue), 2) AS revenue, '
@@ -341,7 +350,7 @@ def category_trends(days: int = Query(default=30, ge=1, le=365)):
 def actual_vs_predicted():
     """Compare today's actual sales vs predicted sales by category."""
     conn = _conn()
-    today = date.today().isoformat()
+    today = get_today_str()
     
     # 1. Actuals for today by category
     actual_rows = conn.execute(
@@ -529,7 +538,7 @@ def item_trend(
 ):
     """Daily qty_sold trend for a specific item over the last N days."""
     conn   = _conn()
-    cutoff = (date.today() - timedelta(days=days)).isoformat()
+    cutoff = (get_today() - timedelta(days=days)).isoformat()
     rows   = conn.execute(
         'SELECT date, SUM(qty_sold) AS qty '
         'FROM daily_sales WHERE item_name = ? AND date >= ? '
@@ -581,7 +590,7 @@ async def upload_pdf(file: UploadFile = File(...)):
                 sale_date = f'{date_match.group(3)}-{date_match.group(2)}-{date_match.group(1)}'
             else:
                 iso_match = re.search(r'(\d{4})-(\d{2})-(\d{2})', filename)
-                sale_date = iso_match.group(0) if iso_match else date.today().isoformat()
+                sale_date = iso_match.group(0) if iso_match else datetime.now(IST).date().isoformat()
                 
             rows_to_insert: List[tuple] = []
             yield event('date', f'📅 Sale date detected: {sale_date}', 8)
@@ -755,7 +764,7 @@ def get_recommendations(date_param: Optional[str] = Query(default=None, alias='d
     Defaults to tomorrow if no date provided.
     """
     if date_param is None:
-        date_param = (datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d')
+        date_param = (datetime.now(IST) + timedelta(days=1)).strftime('%Y-%m-%d')
 
     if RECS_AVAILABLE:
         try:
@@ -779,7 +788,7 @@ def get_context(date_param: Optional[str] = Query(default=None, alias='date')):
     Useful for displaying context cards on the frontend.
     """
     if date_param is None:
-        date_param = (datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d')
+        date_param = (datetime.now(IST) + timedelta(days=1)).strftime('%Y-%m-%d')
 
     if RECS_AVAILABLE:
         try:
@@ -831,7 +840,7 @@ def recommendation_accuracy(days: int = Query(default=14, ge=1, le=90)):
     Returns per-item MAE and overall accuracy metrics.
     """
     conn   = _conn()
-    cutoff = (date.today() - timedelta(days=days)).isoformat()
+    cutoff = (get_today() - timedelta(days=days)).isoformat()
 
     rows = conn.execute(
         """
@@ -1103,7 +1112,7 @@ def get_weather(date_param: Optional[str] = Query(default=None, alias='date')):
     If not cached, fetches/generates it.
     """
     if date_param is None:
-        date_param = (datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d')
+        date_param = (datetime.now(IST) + timedelta(days=1)).strftime('%Y-%m-%d')
 
     try:
         from engine.weather_service import get_weather_for_date, fetch_and_store_weather
