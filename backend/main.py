@@ -43,13 +43,28 @@ _HERE       = os.path.dirname(os.path.abspath(__file__))
 ROOT        = os.path.join(_HERE, '..')
 DB_PATH     = os.environ.get('DB_PATH', os.path.join(_HERE, 'hotel_aditya.db'))
 FRONTEND    = os.path.join(ROOT, 'frontend')
-CONFIG_PATH = os.path.join(_HERE, 'config.json')
+CONFIG_PATH = os.environ.get('CONFIG_PATH')
+if not CONFIG_PATH:
+    if os.path.dirname(DB_PATH) and os.path.dirname(DB_PATH) != _HERE:
+        CONFIG_PATH = os.path.join(os.path.dirname(DB_PATH), 'config.json')
+    else:
+        CONFIG_PATH = os.path.join(_HERE, 'config.json')
+
+# Seed config.json if it doesn't exist on the persistent disk
+import shutil as _shutil
+_BUNDLED_CONFIG = os.path.join(_HERE, 'config.json')
+if CONFIG_PATH != _BUNDLED_CONFIG and not os.path.exists(CONFIG_PATH) and os.path.exists(_BUNDLED_CONFIG):
+    try:
+        os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
+        _shutil.copy2(_BUNDLED_CONFIG, CONFIG_PATH)
+        print(f'[startup] Seeded config: {_BUNDLED_CONFIG} → {CONFIG_PATH}')
+    except Exception as _cfg_err:
+        print(f'[startup] Config seed failed ({_cfg_err})')
 
 # ── Render persistent-disk DB seeding ─────────────────────────────────────────
 # On Render, DB_PATH = /data/hotel_aditya.db (persistent disk).
 # Always copy the bundled DB if it's larger than what's on disk — this ensures
 # a freshly committed DB (with real data) always wins over a stale/empty one.
-import shutil as _shutil
 _BUNDLED_DB = os.path.join(_HERE, 'hotel_aditya.db')
 if DB_PATH != _BUNDLED_DB and os.path.exists(_BUNDLED_DB):
     _disk_size    = os.path.getsize(DB_PATH)    if os.path.exists(DB_PATH)    else 0
@@ -929,6 +944,10 @@ def get_settings():
             'menu_items':  items,
             'date_range':  date_range,
         },
+        'last_cron_ping':      cfg.get('last_cron_ping', None),
+        'last_retrain_time':   cfg.get('last_retrain_time', None),
+        'last_retrain_status': cfg.get('last_retrain_status', None),
+        'last_retrain_error':  cfg.get('last_retrain_error', None),
     }
 
 
@@ -1022,17 +1041,42 @@ def get_gemini_model():
 
 
 @settings_router.post('/retrain')
-def retrain_model():
+def retrain_model(source: Optional[str] = None):
     """Trigger a background model retrain."""
     if not ML_AVAILABLE:
         raise HTTPException(status_code=400, detail='ML engine not available')
 
+    if source == 'cron' or source == 'cron-job.org':
+        try:
+            cfg = _load_config()
+            cfg['last_cron_ping'] = datetime.now().isoformat()
+            _save_config(cfg)
+            print(f'[main] Cron retrain ping logged from source: {source}')
+        except Exception as e:
+            print(f'[main] Failed to log cron ping: {e}')
+
     def _do_train():
         try:
             info = _ml_train()
-            print(f'[main] Model retrained: {info}')
+            print(f'[main] Model retrained successfully: {info}')
+            try:
+                cfg = _load_config()
+                cfg['last_retrain_time'] = datetime.now().isoformat()
+                cfg['last_retrain_status'] = 'success'
+                cfg['last_retrain_error'] = None
+                _save_config(cfg)
+            except Exception as ce:
+                print(f'[main] Failed to save success stats: {ce}')
         except Exception as e:
             print(f'[main] Training failed: {e}')
+            try:
+                cfg = _load_config()
+                cfg['last_retrain_time'] = datetime.now().isoformat()
+                cfg['last_retrain_status'] = 'failed'
+                cfg['last_retrain_error'] = str(e)
+                _save_config(cfg)
+            except Exception as ce:
+                print(f'[main] Failed to save fail stats: {ce}')
 
     threading.Thread(target=_do_train, daemon=True).start()
     return {

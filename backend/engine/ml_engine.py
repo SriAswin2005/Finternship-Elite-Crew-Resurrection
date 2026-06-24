@@ -57,6 +57,12 @@ DB_PATH        = os.environ.get(
     'DB_PATH',
     os.path.join(_HERE, '..', 'hotel_aditya.db')   # _HERE = backend/engine/  →  .. = backend/
 )
+CONFIG_PATH = os.environ.get('CONFIG_PATH')
+if not CONFIG_PATH:
+    if os.path.dirname(DB_PATH) and os.path.dirname(DB_PATH) != os.path.dirname(os.path.abspath(__file__)):
+        CONFIG_PATH = os.path.join(os.path.dirname(DB_PATH), 'config.json')
+    else:
+        CONFIG_PATH = os.path.join(_HERE, '..', 'config.json')
 
 os.makedirs(MODELS_DIR, exist_ok=True)
 
@@ -180,11 +186,10 @@ def train_model() -> dict:
 
     # Also update config.json
     try:
-        cfg_path = os.path.join(_HERE, '..', 'config.json')
-        with open(cfg_path, encoding='utf-8') as f:
+        with open(CONFIG_PATH, encoding='utf-8') as f:
             cfg = json.load(f)
         cfg['model_trained_at'] = trained_at
-        with open(cfg_path, 'w', encoding='utf-8') as f:
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
             json.dump(cfg, f, indent=2)
     except Exception:
         pass

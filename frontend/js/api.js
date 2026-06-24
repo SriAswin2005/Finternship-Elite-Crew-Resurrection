@@ -142,6 +142,7 @@ const MOCK = {
 window.memCache = {}; // Global memory cache to prevent refetching on tab switch
 
 const API = {
+  BASE_URL,
   // ── Dashboard ──────────────────────────────────────────────────────────────
   getDashboardSummary: async () => {
     if (USE_MOCK) return MOCK.dashboard;

@@ -92,9 +92,26 @@ function renderSettings(container) {
                   id="retrain-btn" style="width:100%;margin-top:14px">
             🧠 Retrain Model Now
           </button>
-          <div style="margin-top:10px;font-size:12px;color:var(--color-text-dim);line-height:1.5">
+          <div style="margin-top:10px;font-size:12px;color:var(--color-text-dim);line-height:1.5;margin-bottom:16px">
             Retraining uses your latest logged sales data. Takes ~15–30 seconds
             in the background.
+          </div>
+          
+          <div style="margin-top:16px; padding-top:16px; border-top: 1px solid var(--color-border);">
+            <div style="font-size:12px; font-weight:700; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">
+              📅 Daily Auto-Retraining
+            </div>
+            <div id="auto-retrain-status-display" style="font-size:12px; line-height:1.6; color:var(--color-text-dim);">
+              <div class="loading-spinner" style="padding:10px"></div>
+            </div>
+            <div style="margin-top:12px; padding:10px; background:var(--color-surface-2); border-radius:var(--radius-md); font-size:11px; line-height:1.5; color:var(--color-text-dim);">
+              <strong style="color:var(--color-text-muted)">Daily Cron Integration:</strong><br>
+              To update the database and retrain the model automatically every day, create a free account at <a href="https://cron-job.org" target="_blank" style="color:var(--color-primary); text-decoration:underline;">cron-job.org</a> and configure a daily <strong>POST</strong> job to:
+              <div style="margin-top:6px; display:flex; gap:6px; align-items:center;">
+                <code id="cron-url-code" style="flex:1; color:var(--color-primary); font-family:monospace; background:rgba(0,0,0,0.25); padding:3px 6px; border-radius:3px; word-break:break-all; font-size:10px;">Loading URL...</code>
+                <button class="btn btn-ghost" onclick="navigator.clipboard.writeText(document.getElementById('cron-url-code').textContent); showToast('URL copied!', 'success');" style="padding:4px 8px; font-size:10px; flex-shrink:0;">Copy</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -371,6 +388,61 @@ async function loadSettings() {
           <div class="settings-value">${db.menu_items || '—'} items</div>
         </div>
       </div>`;
+  }
+
+  // Auto-retraining status display
+  const cronEl = document.getElementById('auto-retrain-status-display');
+  if (cronEl) {
+    const lastPing = data.last_cron_ping
+      ? new Date(data.last_cron_ping).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+      : 'No ping received yet';
+      
+    let statusHtml = `
+      <div style="margin-bottom:6px">
+        <strong>Last Cron Ping:</strong> 
+        <span style="color: ${data.last_cron_ping ? 'var(--color-success)' : 'var(--color-text-muted)'}">${lastPing}</span>
+      </div>
+    `;
+    
+    if (data.last_retrain_time) {
+      const lastTrain = new Date(data.last_retrain_time).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+      const isSuccess = data.last_retrain_status === 'success';
+      const statusColor = isSuccess ? 'var(--color-success)' : 'var(--color-danger)';
+      const statusLabel = isSuccess ? '✅ Success' : '❌ Failed';
+      
+      statusHtml += `
+        <div style="margin-bottom:6px">
+          <strong>Cron Retrain Status:</strong> 
+          <span style="color:${statusColor}; font-weight:600">${statusLabel}</span>
+        </div>
+        <div style="margin-bottom:6px">
+          <strong>Last Cron Retrain:</strong> 
+          <span>${lastTrain}</span>
+        </div>
+      `;
+      
+      if (!isSuccess && data.last_retrain_error) {
+        statusHtml += `
+          <div style="color:var(--color-danger); font-size:11px; margin-top:4px; padding:6px; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); border-radius:4px; word-break:break-all">
+            <strong>Error:</strong> ${data.last_retrain_error}
+          </div>
+        `;
+      }
+    } else {
+      statusHtml += `
+        <div>
+          <strong>Cron Retrain Status:</strong> <span style="color:var(--color-text-dim)">N/A</span>
+        </div>
+      `;
+    }
+    
+    cronEl.innerHTML = statusHtml;
+  }
+
+  // Populate cron URL code
+  const urlEl = document.getElementById('cron-url-code');
+  if (urlEl && API.BASE_URL) {
+    urlEl.textContent = `${API.BASE_URL}/settings/retrain?source=cron`;
   }
 }
 
