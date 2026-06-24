@@ -473,8 +473,13 @@ def log_sales(entries: List[SaleEntry]):
     saved  = 0
     errors = []
 
-    # Pre-fetch unit prices for all items to avoid N+1 queries
-    price_rows = conn.execute('SELECT item_name, unit_price FROM menu_items').fetchall()
+    # Fetch historical average unit prices for all items from daily_sales
+    price_rows = conn.execute(
+        'SELECT item_name, CAST(SUM(gross_revenue) AS REAL) / SUM(qty_sold) '
+        'FROM daily_sales '
+        'WHERE qty_sold > 0 AND gross_revenue > 0 '
+        'GROUP BY item_name'
+    ).fetchall()
     price_map  = {r[0]: float(r[1]) for r in price_rows if r[1] is not None}
 
     for entry in entries:
