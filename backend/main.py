@@ -587,9 +587,10 @@ async def upload_pdf(file: UploadFile = File(...)):
             yield event('date', f'📅 Sale date detected: {sale_date}', 8)
 
             if gemini_key:
-                yield event('ocr', f'\U0001f916 Using Gemini 2.5 Flash for OCR...', 20)
                 try:
-                    from engine.gemini_ocr import process_pdf_with_gemini
+                    from engine.gemini_ocr import process_pdf_with_gemini, get_current_model
+                    active_model = get_current_model()
+                    yield event('ocr', f'🤖 Using {active_model} for OCR...', 20)
                     items = await asyncio.to_thread(
                         process_pdf_with_gemini, file_bytes, gemini_key, list(known_items), sale_date
                     )
