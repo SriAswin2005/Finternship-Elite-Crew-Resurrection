@@ -31,13 +31,16 @@ function renderRecommendations(container) {
     <div class="screen">
       <!-- Date Selector -->
       <div class="date-selector-row">
-        <span class="label-sm">Ordering for</span>
+        <span class="label-sm">Ordering for ${infoTip('recDate')}</span>
         <input type="date" id="rec-date" class="input-field" value="${tomorrowStr}"
                style="max-width:160px">
       </div>
 
       <!-- Context Card -->
       <div class="card context-card" id="rec-context">
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">
+          <span style="font-size:11px;color:var(--color-text-dim);font-weight:600;letter-spacing:0.05em">CONTEXT SIGNALS</span>${infoTip('recContext')}
+        </div>
         <div class="context-pill">⏳ <span>Loading context...</span></div>
       </div>
 

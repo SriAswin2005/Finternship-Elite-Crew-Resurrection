@@ -53,7 +53,7 @@ function renderLogSales(container) {
 
       <!-- Header row -->
       <div class="screen-title-row">
-        <div class="screen-title">Log Sales</div>
+        <div class="screen-title">Log Sales ${infoTip('logDate')}</div>
         <input type="date" id="log-date" class="input-field" value="${today}"
                style="max-width:150px; font-size:13px; padding:8px 10px;">
       </div>
