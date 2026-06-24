@@ -29,7 +29,7 @@ function renderDashboard(container) {
 
       <!-- Revenue Highlight -->
       <div class="revenue-highlight">
-        <div class="rev-label">Today's Revenue</div>
+        <div class="rev-label">Today's Revenue ${infoTip('todayRevenue')}</div>
         <div class="rev-amount" id="rev-amount">₹ ---</div>
         <div class="rev-sub" id="rev-sub">Loading...</div>
       </div>
@@ -38,15 +38,15 @@ function renderDashboard(container) {
       <div class="mini-bar">
         <div class="mini-stat">
           <div class="mini-stat-val" id="stat-units">---</div>
-          <div class="mini-stat-lbl">Units Sold</div>
+          <div class="mini-stat-lbl">Units Sold ${infoTip('todayUnits')}</div>
         </div>
         <div class="mini-stat">
           <div class="mini-stat-val" id="stat-avg">---</div>
-          <div class="mini-stat-lbl">Avg / Item</div>
+          <div class="mini-stat-lbl">Avg / Item ${infoTip('avgPerItem')}</div>
         </div>
         <div class="mini-stat">
           <div class="mini-stat-val" id="stat-items">---</div>
-          <div class="mini-stat-lbl">Active Items</div>
+          <div class="mini-stat-lbl">Active Items ${infoTip('activeItems')}</div>
         </div>
       </div>
 
@@ -55,21 +55,21 @@ function renderDashboard(container) {
 
         <!-- Panel 1: Revenue Trend -->
         <div class="card panel-card">
-          <div class="card-title">📈 Revenue Trend (14 days)</div>
+          <div class="card-title">📈 Revenue Trend (14 days) ${infoTip('revenueTrend')}</div>
           <canvas id="revenue-trend-chart" height="200"></canvas>
           <div class="panel-remark" id="trend-remark">Loading trend data...</div>
         </div>
 
         <!-- Panel 2: Tomorrow's Predictions -->
         <div class="card panel-card">
-          <div class="card-title">🔮 Tomorrow's Top Orders</div>
+          <div class="card-title">🔮 Tomorrow's Top Orders ${infoTip('tomorrowOrders')}</div>
           <div class="pred-table-wrap">
             <table class="pred-table">
               <thead>
                 <tr>
                   <th>Item</th>
-                  <th>Qty</th>
-                  <th>Signal</th>
+                  <th>Qty ${infoTip('recQty')}</th>
+                  <th>Signal ${infoTip('recReason')}</th>
                 </tr>
               </thead>
               <tbody id="pred-table-body">
@@ -88,7 +88,7 @@ function renderDashboard(container) {
 
       <!-- Actual vs Predicted (bar chart) -->
       <div class="card chart-card">
-        <div class="card-title">📊 Actual vs Predicted Today (Categories)</div>
+        <div class="card-title">📊 Actual vs Predicted Today (Categories) ${infoTip('actualVsPred')}</div>
         <canvas id="top-items-chart" height="220"></canvas>
       </div>
 
@@ -135,15 +135,24 @@ async function loadDashboardData() {
 // ── Fill Summary Data ──────────────────────────────────────────────────────────
 function fillSummary(data) {
   // Revenue
-  const rev = data.today_revenue || 0;
-  setEl('rev-amount', '₹ ' + Math.round(rev).toLocaleString('en-IN'));
+  const rev   = data.today_revenue || 0;
   const units = data.total_qty_sold || 0;
-  setEl('rev-sub', `${units} units sold today`);
-  setEl('stat-units', units.toLocaleString('en-IN'));
-  const itemCount = data.top_items?.length || 0;
-  setEl('stat-items', data.menu_items || itemCount);
-  const avgItem = itemCount > 0 ? Math.round(rev / Math.max(units, 1)) : 0;
-  setEl('stat-avg', '₹' + avgItem);
+  // Show revenue if available; if qty logged but no revenue, show estimated note
+  if (rev > 0) {
+    setEl('rev-amount', '₹ ' + Math.round(rev).toLocaleString('en-IN'));
+  } else if (units > 0) {
+    setEl('rev-amount', units + ' units');
+    // Update label to reflect units mode
+    const lbl = document.querySelector('.rev-label');
+    if (lbl) lbl.childNodes[0].textContent = 'Today\'s Sales ';
+  } else {
+    setEl('rev-amount', '₹ —');
+  }
+  setEl('rev-sub', units > 0 ? `${units} units sold today` : 'No sales logged yet — use Log Sales tab');
+  setEl('stat-units', units > 0 ? units.toLocaleString('en-IN') : '—');
+  setEl('stat-items', data.menu_items || data.top_items?.length || '—');
+  const avgItem = (rev > 0 && units > 0) ? Math.round(rev / units) : 0;
+  setEl('stat-avg', avgItem > 0 ? ('₹' + avgItem) : '—');
 
   // Weather card
   const w = data.weather || {};

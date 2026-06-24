@@ -211,11 +211,13 @@ def dashboard_summary():
     today = date.today().isoformat()
     conn  = _conn()
 
-    # Today's revenue
+    # Today's revenue and units sold
     rev_row = conn.execute(
-        'SELECT COALESCE(SUM(gross_revenue), 0) FROM daily_sales WHERE date = ?', (today,)
+        'SELECT COALESCE(SUM(gross_revenue), 0), COALESCE(SUM(qty_sold), 0) '
+        'FROM daily_sales WHERE date = ?', (today,)
     ).fetchone()
-    today_revenue = round(float(rev_row[0]), 2)
+    today_revenue  = round(float(rev_row[0]), 2)
+    today_qty_sold = int(rev_row[1])
 
     # Top 5 items by qty today
     top_rows = conn.execute(
@@ -228,6 +230,9 @@ def dashboard_summary():
         {'item_name': r[0], 'qty_sold': int(r[1]), 'revenue': round(float(r[2]), 2)}
         for r in top_rows
     ]
+
+    # Total menu items count
+    menu_count = conn.execute('SELECT COUNT(*) FROM menu_items').fetchone()[0]
 
     # Weather for today (or tomorrow if today not available)
     weather = None
@@ -264,6 +269,8 @@ def dashboard_summary():
     return {
         'date':           today,
         'today_revenue':  today_revenue,
+        'total_qty_sold': today_qty_sold,
+        'menu_items':     int(menu_count),
         'month_revenue':  round(float(month_rev), 2),
         'top_items':      top_items,
         'weather':        dict(weather) if weather else None,
@@ -457,6 +464,7 @@ def get_sales(date_filter: Optional[str] = Query(default=None, alias='date'),
 def log_sales(entries: List[SaleEntry]):
     """
     Upsert one or more sales entries.
+    If gross_revenue is not provided, estimate it from menu_items.unit_price.
     Because daily_sales has UNIQUE(date, item_name), INSERT OR REPLACE
     will UPDATE the existing row if it already exists, so clicking
     'Save' multiple times never duplicates data.
@@ -465,13 +473,19 @@ def log_sales(entries: List[SaleEntry]):
     saved  = 0
     errors = []
 
+    # Pre-fetch unit prices for all items to avoid N+1 queries
+    price_rows = conn.execute('SELECT item_name, unit_price FROM menu_items').fetchall()
+    price_map  = {r[0]: float(r[1]) for r in price_rows if r[1] is not None}
+
     for entry in entries:
-        revenue = entry.gross_revenue if entry.gross_revenue is not None else 0.0
+        # Use provided revenue; if missing/zero, estimate from unit price
+        if entry.gross_revenue is not None and entry.gross_revenue > 0:
+            revenue = entry.gross_revenue
+        else:
+            unit_price = price_map.get(entry.item_name, 0.0)
+            revenue = round(entry.qty_sold * unit_price, 2)
 
         try:
-            # INSERT OR REPLACE leverages UNIQUE(date, item_name):
-            # if a row already exists for this date+item, it is replaced (updated).
-            # This means saving the same form twice sets the final qty, not doubles it.
             conn.execute(
                 'INSERT OR REPLACE INTO daily_sales '
                 '(date, item_name, qty_sold, gross_revenue, source) '
