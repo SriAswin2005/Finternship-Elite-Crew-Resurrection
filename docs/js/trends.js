@@ -22,21 +22,21 @@ function renderTrends(container) {
         <!-- Summary cards -->
         <div class="stat-row" style="margin-bottom:10px;">
           <div class="stat-card card">
-            <div class="stat-label">45-Day Revenue</div>
+            <div class="stat-label">45-Day Revenue ${infoTip('totalRevenue45')}</div>
             <div class="stat-value primary" id="total-revenue-val">₹—</div>
           </div>
           <div class="stat-card card">
-            <div class="stat-label">Daily Average</div>
+            <div class="stat-label">Daily Average ${infoTip('dailyAvg')}</div>
             <div class="stat-value" id="avg-daily-rev">₹—</div>
           </div>
         </div>
         <div class="stat-row" style="margin-bottom:10px;">
           <div class="stat-card card">
-            <div class="stat-label">Best Day</div>
+            <div class="stat-label">Best Day ${infoTip('bestDay')}</div>
             <div class="stat-value" id="best-day-val">₹—</div>
           </div>
           <div class="stat-card card">
-            <div class="stat-label">Total Units</div>
+            <div class="stat-label">Total Units ${infoTip('totalUnits')}</div>
             <div class="stat-value" id="total-units-val">—</div>
           </div>
         </div>
@@ -49,7 +49,7 @@ function renderTrends(container) {
 
         <!-- DOW pattern -->
         <div class="card chart-card">
-          <div class="card-title">Day-of-Week Pattern</div>
+          <div class="card-title">Day-of-Week Pattern ${infoTip('dowPattern')}</div>
           <canvas id="dow-chart" height="190"></canvas>
         </div>
       </div>
@@ -57,7 +57,7 @@ function renderTrends(container) {
       <!-- Category Tab -->
       <div id="tab-panel-category" style="display:none">
         <div class="card chart-card">
-          <div class="card-title">Revenue by Category</div>
+          <div class="card-title">Revenue by Category ${infoTip('catRevenue')}</div>
           <canvas id="cat-revenue-chart" height="280"></canvas>
         </div>
         <div class="card chart-card">
