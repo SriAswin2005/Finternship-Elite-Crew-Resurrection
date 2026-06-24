@@ -20,6 +20,34 @@ _DEFAULT_JSON = os.path.join(_HERE, "..", "..", "data", "festivals_2026.json")
 FESTIVALS_JSON_PATH = os.environ.get("FESTIVALS_JSON", _DEFAULT_JSON)
 
 # ── Load once at module import ─────────────────────────────────────────────────
+def _load_custom_events() -> dict:
+    """Loads custom_events.json and returns expanded {date_str: {'name': ..., 'multiplier': ...}}."""
+    lookup = {}
+    custom_path = os.environ.get(
+        "CUSTOM_EVENTS_JSON", 
+        os.path.join(os.path.dirname(FESTIVALS_JSON_PATH), "custom_events.json")
+    )
+    try:
+        if os.path.exists(custom_path):
+            with open(custom_path, encoding="utf-8") as f:
+                data = json.load(f)
+            for entry in data:
+                start_date = datetime.strptime(entry["date_from"], "%Y-%m-%d").date()
+                end_date = datetime.strptime(entry["date_to"], "%Y-%m-%d").date()
+                name = entry["name"]
+                mult = float(entry.get("demand_multiplier", 1.3))
+                
+                curr = start_date
+                while curr <= end_date:
+                    d_str = curr.isoformat()
+                    if d_str not in lookup or lookup[d_str]["multiplier"] < mult:
+                        lookup[d_str] = {"name": name, "multiplier": mult}
+                    curr += timedelta(days=1)
+    except Exception as e:
+        print(f"[festival_service] ERROR loading custom events: {e}")
+    return lookup
+
+
 def _load_festivals() -> dict:
     """Returns {date_str: {"name": ..., "multiplier": ...}} for fast lookup."""
     lookup = {}
@@ -37,6 +65,16 @@ def _load_festivals() -> dict:
         print(f"[festival_service] WARNING: {FESTIVALS_JSON_PATH} not found. Using no festivals.")
     except Exception as e:
         print(f"[festival_service] ERROR loading festivals: {e}")
+        
+    # Merge custom local events
+    try:
+        custom_lookup = _load_custom_events()
+        for d, val in custom_lookup.items():
+            if d not in lookup or lookup[d]["multiplier"] < val["multiplier"]:
+                lookup[d] = val
+    except Exception as e:
+        print(f"[festival_service] ERROR merging custom events: {e}")
+        
     return lookup
 
 FESTIVAL_LOOKUP: dict = _load_festivals()

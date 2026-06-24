@@ -22,6 +22,50 @@ const CATEGORY_META = {
 let _modifiedQtys = {};
 let _currentRecDate = null;
 
+// ── Apply merchant custom rules to recommendation quantities ───────────────────
+function applyCustomRules(recs, dateStr) {
+  let rules = [];
+  try {
+    rules = JSON.parse(localStorage.getItem('hotel_aditya_custom_rules') || '[]');
+  } catch (e) {
+    console.error('Failed to parse custom rules', e);
+  }
+  if (!rules.length) return recs;
+
+  // Get day name for the currently selected date
+  let dayName = '';
+  if (dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getDay()];
+  }
+
+  return recs.map(item => {
+    let multiplier = 1.0;
+    let ruleApplied = null;
+    for (const rule of rules) {
+      const dayMatch  = !rule.day      || rule.day === dayName;
+      const catMatch  = !rule.category || rule.category.toLowerCase() === (item.category || '').toLowerCase();
+      if (dayMatch && catMatch) {
+        multiplier += parseFloat(rule.adjustment);
+        ruleApplied = rule;
+      }
+    }
+    if (ruleApplied && multiplier !== 1.0) {
+      const origQty  = item.recommended_qty;
+      const newQty   = Math.max(1, Math.round(origQty * Math.max(0.1, multiplier)));
+      const adjNum   = parseFloat(ruleApplied.adjustment);
+      const adjLabel = adjNum >= 0 ? `+${Math.round(adjNum*100)}%` : `${Math.round(adjNum*100)}%`;
+      return {
+        ...item,
+        recommended_qty: newQty,
+        reason: `${item.reason || ''} | 🔧 Custom rule: ${adjLabel}`.trim().replace(/^\| /, ''),
+        _rule_adjusted: true,
+      };
+    }
+    return item;
+  });
+}
+
 function renderRecommendations(container) {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -88,7 +132,7 @@ async function loadRecommendations(date) {
     return;
   }
 
-  const recs = data.recommendations;
+  const recs = applyCustomRules(data.recommendations, date);
 
   // Group by category in preferred order
   const CAT_ORDER = ['biryani','chicken','bread','dairy','rice','beverage','starter','seafood','ice_cream','family_pack','egg','soup','other'];

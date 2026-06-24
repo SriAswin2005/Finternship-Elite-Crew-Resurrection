@@ -1084,6 +1084,82 @@ app.include_router(weather_router)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# CUSTOM EVENTS ROUTER
+# ═══════════════════════════════════════════════════════════════════════════════
+
+events_router = APIRouter(prefix='/events', tags=['Custom Events'])
+
+CUSTOM_EVENTS_PATH = os.path.join(_HERE, '..', 'data', 'custom_events.json')
+
+def _load_custom_events() -> list:
+    try:
+        if os.path.exists(CUSTOM_EVENTS_PATH):
+            with open(CUSTOM_EVENTS_PATH, encoding='utf-8') as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return []
+
+def _save_custom_events(events: list) -> None:
+    os.makedirs(os.path.dirname(CUSTOM_EVENTS_PATH), exist_ok=True)
+    with open(CUSTOM_EVENTS_PATH, 'w', encoding='utf-8') as f:
+        json.dump(events, f, ensure_ascii=False, indent=2)
+
+@events_router.get('/')
+def get_custom_events():
+    """Get all custom local events."""
+    return {'events': _load_custom_events()}
+
+class CustomEvent(BaseModel):
+    name: str
+    date_from: str
+    date_to: str
+    demand_multiplier: float = 1.3
+
+@events_router.post('/')
+def add_custom_event(event: CustomEvent):
+    """Add a custom local event."""
+    events = _load_custom_events()
+    entry = {
+        'name': event.name,
+        'date_from': event.date_from,
+        'date_to': event.date_to,
+        'demand_multiplier': event.demand_multiplier,
+        'id': len(events),
+    }
+    events.append(entry)
+    _save_custom_events(events)
+    # Reload festival service to include new event dates
+    try:
+        from engine.festival_service import reload_festivals
+        reload_festivals()
+    except Exception:
+        pass
+    return {'ok': True, 'event': entry}
+
+@events_router.delete('/{event_id}')
+def delete_custom_event(event_id: int):
+    """Delete a custom event by ID."""
+    events = _load_custom_events()
+    if 0 <= event_id < len(events):
+        events.pop(event_id)
+        # Re-index IDs
+        for i, e in enumerate(events):
+            e['id'] = i
+        _save_custom_events(events)
+        # Reload festival service to reflect deletion
+        try:
+            from engine.festival_service import reload_festivals
+            reload_festivals()
+        except Exception:
+            pass
+        return {'ok': True}
+    return {'ok': False, 'error': 'Event not found'}
+
+app.include_router(events_router)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # FRONTEND STATIC FILES
 # ═══════════════════════════════════════════════════════════════════════════════
 

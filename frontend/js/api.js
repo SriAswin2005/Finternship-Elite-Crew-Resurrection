@@ -235,6 +235,28 @@ const API = {
     return await apiFetch('/recommendations/accuracy');
   },
 
+  // ── Custom Local Events ────────────────────────────────────────────────────
+  getCustomEvents: async () => {
+    if (USE_MOCK) return { events: [] };
+    const data = await apiFetch('/events/');
+    return data || { events: [] };
+  },
+
+  addCustomEvent: async (name, date_from, date_to, demand_multiplier) => {
+    if (USE_MOCK) return { ok: true, event: { id: 0, name, date_from, date_to, demand_multiplier } };
+    return await apiFetch('/events/', {
+      method: 'POST',
+      body: JSON.stringify({ name, date_from, date_to, demand_multiplier })
+    });
+  },
+
+  deleteCustomEvent: async (id) => {
+    if (USE_MOCK) return { ok: true };
+    return await apiFetch(`/events/${id}`, {
+      method: 'DELETE'
+    });
+  },
+
   // ── Settings ───────────────────────────────────────────────────────────────
   getSettings: async () => {
     if (USE_MOCK) return MOCK.settings;

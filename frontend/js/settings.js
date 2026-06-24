@@ -107,6 +107,78 @@ function renderSettings(container) {
         </div>
       </div>
 
+      <!-- Custom Prediction Rules -->
+      <div class="settings-section">
+        <div class="settings-section-title">⚙️ Custom Prediction Rules</div>
+        <div class="card" style="padding:16px">
+          <div style="font-size:13px;color:var(--color-text-muted);margin-bottom:14px;line-height:1.6">
+            Override the AI for specific days or categories where you know better.
+            Example: <em>"Saturdays → Chicken → −40%"</em> for religious reasons.
+          </div>
+
+          <!-- Existing rules list -->
+          <div id="custom-rules-list" style="margin-bottom:14px"></div>
+
+          <!-- Add new rule form -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end" id="add-rule-row">
+            <div>
+              <label style="font-size:11px;color:var(--color-text-dim);display:block;margin-bottom:5px;font-weight:600;letter-spacing:0.05em">DAY</label>
+              <select id="rule-day" class="api-key-input" style="padding:9px 10px">
+                <option value="">Every day</option>
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+                <option value="Sunday">Sunday</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--color-text-dim);display:block;margin-bottom:5px;font-weight:600;letter-spacing:0.05em">CATEGORY</label>
+              <select id="rule-cat" class="api-key-input" style="padding:9px 10px">
+                <option value="">All items</option>
+                <option value="biryani">🍛 Biryani</option>
+                <option value="chicken">🍗 Chicken</option>
+                <option value="beverage">🥤 Beverages</option>
+                <option value="bread">🫓 Breads</option>
+                <option value="dairy">🧀 Dairy</option>
+                <option value="starter">🍟 Starters</option>
+                <option value="rice">🍚 Rice</option>
+                <option value="ice_cream">🍦 Ice Cream</option>
+                <option value="seafood">🦐 Seafood</option>
+                <option value="veg">🥦 Veg</option>
+                <option value="soup">🍲 Soup</option>
+                <option value="dessert">🍮 Dessert</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--color-text-dim);display:block;margin-bottom:5px;font-weight:600;letter-spacing:0.05em">ADJUST %</label>
+              <select id="rule-adj" class="api-key-input" style="padding:9px 10px">
+                <option value="-0.5">−50% (Half)</option>
+                <option value="-0.4" selected>−40%</option>
+                <option value="-0.3">−30%</option>
+                <option value="-0.2">−20%</option>
+                <option value="-0.1">−10%</option>
+                <option value="0.1">+10%</option>
+                <option value="0.2">+20%</option>
+                <option value="0.3">+30%</option>
+                <option value="0.5">+50%</option>
+                <option value="0.75">+75%</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="addCustomRule()" style="padding:9px 14px;white-space:nowrap">
+              + Add
+            </button>
+          </div>
+
+          <div style="margin-top:10px;font-size:12px;color:var(--color-text-dim);line-height:1.5">
+            💡 Rules are applied <strong>after</strong> the AI prediction, as a final multiplier.
+            The AI still learns — rules only correct the output.
+          </div>
+        </div>
+      </div>
+
       <!-- How Predictions Work -->
       <div class="settings-section">
         <div class="settings-section-title">ℹ️ How Predictions Work</div>
@@ -127,6 +199,51 @@ function renderSettings(container) {
           <br>
           <strong style="color:var(--color-text)">Updates automatically</strong>
           every time you log new sales data.
+        </div>
+      </div>
+
+      <!-- Custom Local Events -->
+      <div class="settings-section">
+        <div class="settings-section-title">📅 Custom Local Events</div>
+        <div class="card" style="padding:16px">
+          <div style="font-size:13px;color:var(--color-text-muted);margin-bottom:14px;line-height:1.6">
+            Add local events that boost demand — village fairs, school exams, cricket matches, marriages season, etc.
+            The AI will apply the demand multiplier during that date range.
+          </div>
+
+          <div id="custom-events-list" style="margin-bottom:14px"></div>
+
+          <!-- Add event form -->
+          <div style="display:grid;gap:10px;margin-bottom:10px">
+            <input type="text" id="event-name" class="api-key-input" placeholder="Event name (e.g. Local Cricket Tournament)">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div>
+                <label style="font-size:11px;color:var(--color-text-dim);display:block;margin-bottom:5px;font-weight:600;letter-spacing:0.05em">FROM DATE</label>
+                <input type="date" id="event-from" class="api-key-input" style="padding:9px 10px">
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--color-text-dim);display:block;margin-bottom:5px;font-weight:600;letter-spacing:0.05em">TO DATE</label>
+                <input type="date" id="event-to" class="api-key-input" style="padding:9px 10px">
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end">
+              <div>
+                <label style="font-size:11px;color:var(--color-text-dim);display:block;margin-bottom:5px;font-weight:600;letter-spacing:0.05em">DEMAND BOOST</label>
+                <select id="event-mult" class="api-key-input" style="padding:9px 10px">
+                  <option value="1.1">+10% (Minor event)</option>
+                  <option value="1.2">+20%</option>
+                  <option value="1.3" selected>+30% (Local fair)</option>
+                  <option value="1.4">+40%</option>
+                  <option value="1.5">+50% (Big event)</option>
+                  <option value="1.75">+75%</option>
+                  <option value="2.0">+100% (Major festival)</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" onclick="addCustomEvent()" style="padding:9px 16px">
+                + Add Event
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -151,6 +268,8 @@ function renderSettings(container) {
 
 // ── Load Settings Data ─────────────────────────────────────────────────────────
 async function loadSettings() {
+  renderCustomRules();
+  loadCustomEventsList();
   const data = await API.getSettings();
   if (!data) {
     setEl('weather-status-badge', '❌ Backend offline');
@@ -394,5 +513,125 @@ async function saveGeminiKey() {
     showToast('✨ Gemini key saved! AI OCR is now active.', 'success');
   } else {
     showToast('Failed to save key — is the backend running?', 'error');
+  }
+}
+
+// ── Custom Prediction Rules ────────────────────────────────────────────────────
+const RULES_KEY = 'hotel_aditya_custom_rules';
+
+function loadCustomRules() {
+  try { return JSON.parse(localStorage.getItem(RULES_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function saveCustomRules(rules) {
+  localStorage.setItem(RULES_KEY, JSON.stringify(rules));
+}
+
+function renderCustomRules() {
+  const container = document.getElementById('custom-rules-list');
+  if (!container) return;
+  const rules = loadCustomRules();
+  if (!rules.length) {
+    container.innerHTML = `<div style="font-size:12px;color:var(--color-text-dim);padding:8px 0">No custom rules yet. Add one below.</div>`;
+    return;
+  }
+  container.innerHTML = rules.map((r, i) => {
+    const dayLabel  = r.day  || 'Every day';
+    const catLabel  = r.category ? r.category.charAt(0).toUpperCase() + r.category.slice(1) : 'All items';
+    const adjNum    = parseFloat(r.adjustment);
+    const adjLabel  = adjNum >= 0 ? `+${Math.round(adjNum * 100)}%` : `${Math.round(adjNum * 100)}%`;
+    const adjColor  = adjNum >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--color-surface-2);border-radius:var(--radius-md);margin-bottom:6px;border:1px solid var(--color-border)">
+        <div style="font-size:13px;color:var(--color-text)">
+          <span style="color:var(--color-text-muted)">${dayLabel}</span>
+          <span style="margin:0 6px;color:var(--color-text-dim)">→</span>
+          <span>${catLabel}</span>
+          <span style="margin-left:10px;font-weight:700;color:${adjColor}">${adjLabel}</span>
+        </div>
+        <button onclick="deleteCustomRule(${i})" style="background:none;border:none;color:var(--color-text-dim);cursor:pointer;font-size:16px;padding:2px 6px" title="Delete rule">✕</button>
+      </div>`;
+  }).join('');
+}
+
+function addCustomRule() {
+  const day      = document.getElementById('rule-day')?.value  || '';
+  const category = document.getElementById('rule-cat')?.value  || '';
+  const adj      = parseFloat(document.getElementById('rule-adj')?.value || '-0.4');
+  const rules    = loadCustomRules();
+  rules.push({ day, category, adjustment: adj });
+  saveCustomRules(rules);
+  renderCustomRules();
+  showToast('Rule added — will apply to next recommendations', 'success');
+}
+
+function deleteCustomRule(index) {
+  const rules = loadCustomRules();
+  rules.splice(index, 1);
+  saveCustomRules(rules);
+  renderCustomRules();
+  showToast('Rule removed', '');
+}
+
+// ── Custom Local Events ───────────────────────────────────────────────────────
+async function loadCustomEventsList() {
+  const container = document.getElementById('custom-events-list');
+  if (!container) return;
+  const res = await API.getCustomEvents();
+  const events = res?.events || [];
+  if (!events.length) {
+    container.innerHTML = `<div style="font-size:12px;color:var(--color-text-dim);padding:8px 0">No custom events yet. Add one below.</div>`;
+    return;
+  }
+  container.innerHTML = events.map(e => {
+    const fromStr = new Date(e.date_from).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    const toStr = new Date(e.date_to).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    const boostStr = `+${Math.round((e.demand_multiplier - 1) * 100)}%`;
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--color-surface-2);border-radius:var(--radius-md);margin-bottom:6px;border:1px solid var(--color-border)">
+        <div style="font-size:13px;color:var(--color-text)">
+          <strong style="color:var(--color-text)">${e.name}</strong>
+          <span style="margin-left:8px;font-size:11px;color:var(--color-text-muted)">(${fromStr} - ${toStr})</span>
+          <span style="margin-left:10px;font-weight:700;color:var(--color-success)">${boostStr}</span>
+        </div>
+        <button onclick="removeCustomEvent(${e.id})" style="background:none;border:none;color:var(--color-text-dim);cursor:pointer;font-size:16px;padding:2px 6px" title="Delete event">✕</button>
+      </div>`;
+  }).join('');
+}
+
+async function addCustomEvent() {
+  const name = document.getElementById('event-name')?.value?.trim();
+  const from = document.getElementById('event-from')?.value;
+  const to   = document.getElementById('event-to')?.value;
+  const mult = parseFloat(document.getElementById('event-mult')?.value || '1.3');
+
+  if (!name || !from || !to) {
+    showToast('Please fill out all event fields', 'error');
+    return;
+  }
+
+  const result = await API.addCustomEvent(name, from, to, mult);
+  if (result && result.ok) {
+    showToast('Event added successfully', 'success');
+    document.getElementById('event-name').value = '';
+    document.getElementById('event-from').value = '';
+    document.getElementById('event-to').value = '';
+    loadCustomEventsList();
+    // Bust dashboard cache to load new festival info
+    if (window.memCache) delete window.memCache['dashboard'];
+  } else {
+    showToast('Failed to add event', 'error');
+  }
+}
+
+async function removeCustomEvent(id) {
+  const result = await API.deleteCustomEvent(id);
+  if (result && result.ok) {
+    showToast('Event removed', '');
+    loadCustomEventsList();
+    if (window.memCache) delete window.memCache['dashboard'];
+  } else {
+    showToast('Failed to remove event', 'error');
   }
 }
