@@ -47,17 +47,23 @@ CONFIG_PATH = os.path.join(_HERE, 'config.json')
 
 # ── Render persistent-disk DB seeding ─────────────────────────────────────────
 # On Render, DB_PATH = /data/hotel_aditya.db (persistent disk).
-# On first boot the disk is empty, so copy the bundled DB from the repo.
+# Always copy the bundled DB if it's larger than what's on disk — this ensures
+# a freshly committed DB (with real data) always wins over a stale/empty one.
 import shutil as _shutil
 _BUNDLED_DB = os.path.join(_HERE, 'hotel_aditya.db')
-if DB_PATH != _BUNDLED_DB and not os.path.exists(DB_PATH) and os.path.exists(_BUNDLED_DB):
-    try:
-        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-        _shutil.copy2(_BUNDLED_DB, DB_PATH)
-        print(f'[startup] Seeded DB from {_BUNDLED_DB} → {DB_PATH}')
-    except Exception as _seed_err:
-        print(f'[startup] DB seed failed ({_seed_err}), falling back to bundled DB')
-        DB_PATH = _BUNDLED_DB
+if DB_PATH != _BUNDLED_DB and os.path.exists(_BUNDLED_DB):
+    _disk_size    = os.path.getsize(DB_PATH)    if os.path.exists(DB_PATH)    else 0
+    _bundled_size = os.path.getsize(_BUNDLED_DB)
+    if _bundled_size > _disk_size:
+        try:
+            os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+            _shutil.copy2(_BUNDLED_DB, DB_PATH)
+            print(f'[startup] Seeded DB: {_BUNDLED_DB} ({_bundled_size}B) → {DB_PATH} (was {_disk_size}B)')
+        except Exception as _seed_err:
+            print(f'[startup] DB seed failed ({_seed_err}), falling back to bundled DB')
+            DB_PATH = _BUNDLED_DB
+    else:
+        print(f'[startup] Persistent DB up-to-date ({_disk_size}B >= bundled {_bundled_size}B), skipping seed')
 
 
 # ── Config helpers ─────────────────────────────────────────────────────────────
