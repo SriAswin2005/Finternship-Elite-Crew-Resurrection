@@ -44,3 +44,6 @@ backend/config.json
 # SQLite journal files (transient, not needed in git)
 *.db-shm
 *.db-wal
+
+# Merchant data — NEVER commit raw PDF bills (private sales data)
+data/*.pdf
