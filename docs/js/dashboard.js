@@ -92,6 +92,16 @@ function renderDashboard(container) {
         <canvas id="top-items-chart" height="220"></canvas>
       </div>
 
+      <!-- AI / Data Insights Section -->
+      <div class="card" style="padding:16px;margin-bottom:16px">
+        <div class="card-title" style="margin-bottom:12px;display:flex;align-items:center;gap:6px">
+          <span>💡</span> <span>AI Kitchen & Sales Insights</span>
+        </div>
+        <div id="insights-container" style="display:flex;flex-direction:column;gap:10px">
+          <div class="loading-spinner" style="padding:20px"></div>
+        </div>
+      </div>
+
       <div class="data-source" id="data-source-note">Connecting to backend...</div>
     </div>
   `;
@@ -130,6 +140,56 @@ async function loadDashboardData() {
   const recs = recData?.recommendations || [];
   renderPredTable(recs);
   setEl('pred-remark', generatePredRemark(recs, tomorrowStr));
+
+  // Load AI Kitchen insights
+  loadDashboardInsights();
+}
+
+async function loadDashboardInsights() {
+  const container = document.getElementById('insights-container');
+  if (!container) return;
+
+  container.innerHTML = `<div class="loading-spinner" style="padding:20px"></div>`;
+
+  const res = await API.getInsights();
+  const insights = res?.insights || [];
+
+  if (!insights.length) {
+    container.innerHTML = `
+      <div style="font-size:12px;color:var(--color-text-dim);text-align:center;padding:12px">
+        No insights available yet. Log more sales data to unlock trends!
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = insights.map(ins => {
+    let themeColor = 'var(--color-primary)';
+    let bgLight = 'rgba(232, 83, 26, 0.06)';
+    if (ins.color === 'success') {
+      themeColor = 'var(--color-success)';
+      bgLight = 'rgba(16, 185, 129, 0.06)';
+    } else if (ins.color === 'warning') {
+      themeColor = 'var(--color-warning)';
+      bgLight = 'rgba(245, 158, 11, 0.06)';
+    } else if (ins.color === 'danger') {
+      themeColor = 'var(--color-danger)';
+      bgLight = 'rgba(239, 68, 68, 0.06)';
+    }
+
+    const textHtml = ins.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+    return `
+      <div class="card" style="padding:12px 14px;border-left:4px solid ${themeColor};background:${bgLight};margin-bottom:0;border-radius:var(--radius-sm)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px">
+          <div style="font-size:13px;font-weight:700;color:var(--color-text)">${ins.title}</div>
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:${themeColor};background:var(--color-surface);padding:2px 8px;border-radius:4px">${ins.badge}</span>
+        </div>
+        <div style="font-size:12px;line-height:1.5;color:var(--color-text-muted)">
+          ${textHtml}
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 // ── Fill Summary Data ──────────────────────────────────────────────────────────

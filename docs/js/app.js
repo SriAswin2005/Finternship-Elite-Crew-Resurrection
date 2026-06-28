@@ -171,6 +171,8 @@ const INFO_TIPS = {
   'dowPattern':      { title: '📅 Day-of-Week Pattern', body: 'Average revenue for each day of the week (Monday through Sunday) across all your historical data. This tells you which days are consistently busy vs slow — and the AI uses this pattern to adjust tomorrow\'s recommendations.' },
   'catRevenue':      { title: '🏷️ Revenue by Category', body: 'Revenue breakdown by food category (Biryanis, Chicken, Beverages, etc.) across your 45-day history. Shows which food groups drive the most income for the hotel.' },
   'itemDeepDive':    { title: '🔍 Item Deep Dive', body: 'Search for any specific menu item and see its complete sales history — daily quantities sold over time, plus its day-of-week pattern. Useful for understanding which items are trending up or down.' },
+  'accuracyScore':   { title: '🎯 Model Accuracy', body: 'The overall percentage accuracy of the AI\'s predictions. A higher percentage indicates that tomorrow\'s predictions are closer to actual sales. Formula: 100% minus the average error percentage relative to total orders.' },
+  'mae':             { title: '📐 Mean Absolute Error (MAE)', body: 'The average absolute difference between the quantities recommended by the AI and the actual quantities sold. A lower MAE indicates more precise recommendations (fewer wasted ingredients and fewer lost sales).' },
 };
 
 function infoTip(key) {

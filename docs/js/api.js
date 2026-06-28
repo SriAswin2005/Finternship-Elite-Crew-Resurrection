@@ -257,9 +257,15 @@ const API = {
     });
   },
 
-  getAccuracy: async () => {
+  getAccuracy: async (days = 14) => {
     if (USE_MOCK) return null;
-    return await apiFetch('/recommendations/accuracy');
+    return await apiFetch(`/recommendations/accuracy?days=${days}`);
+  },
+
+  getInsights: async () => {
+    if (USE_MOCK) return { insights: [] };
+    const data = await apiFetch('/dashboard/insights');
+    return data || { insights: [] };
   },
 
   // ── Custom Local Events ────────────────────────────────────────────────────
@@ -350,10 +356,17 @@ const API = {
     });
   },
 
-  addMenuItem: async (itemName, category, avgQty = 0) => {
+  addMenuItem: async (itemName, category, avgQty = 0, unitPrice = 0) => {
     return await apiFetch('/items/add', {
       method: 'POST',
-      body: JSON.stringify({ item_name: itemName, category, avg_qty: avgQty })
+      body: JSON.stringify({ item_name: itemName, category, avg_qty: avgQty, unit_price: unitPrice })
+    });
+  },
+
+  updateItemPrice: async (itemName, unitPrice) => {
+    return await apiFetch(`/items/${encodeURIComponent(itemName)}/price`, {
+      method: 'PATCH',
+      body: JSON.stringify({ unit_price: Number(unitPrice) })
     });
   },
 

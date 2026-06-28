@@ -249,7 +249,7 @@ function renderSettings(container) {
           <!-- Add new item -->
           <div style="border-top:1px solid var(--color-border);padding-top:14px;margin-top:14px">
             <div style="font-size:12px;font-weight:600;letter-spacing:0.05em;color:var(--color-text-dim);margin-bottom:8px">ADD NEW ITEM TO MENU</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px">
+            <div style="display:grid;grid-template-columns:1fr 1fr 80px auto;gap:8px;align-items:end;margin-bottom:8px">
               <div>
                 <label style="font-size:11px;color:var(--color-text-dim);display:block;margin-bottom:4px;font-weight:600">ITEM NAME</label>
                 <input type="text" id="new-item-name" class="api-key-input" placeholder="e.g. Paneer 65" style="padding:9px 10px">
@@ -257,6 +257,10 @@ function renderSettings(container) {
               <div>
                 <label style="font-size:11px;color:var(--color-text-dim);display:block;margin-bottom:4px;font-weight:600">CATEGORY</label>
                 <select id="new-item-category" class="api-key-input" style="padding:9px 10px" onchange="handleNewItemCategoryChange(this.value)"></select>
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--color-text-dim);display:block;margin-bottom:4px;font-weight:600">PRICE (₹)</label>
+                <input type="number" id="new-item-price" class="api-key-input" placeholder="e.g. 180" style="padding:9px 10px;text-align:right" value="0">
               </div>
               <button class="btn btn-primary" onclick="addMenuItemAction()" style="padding:9px 14px">+ Add</button>
             </div>
@@ -836,12 +840,19 @@ async function toggleCategoryExpand(category) {
 
   inner.innerHTML = items.map(item => {
     const safeName = item.item_name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const priceVal = item.unit_price != null ? item.unit_price : 0;
     return `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--color-border)">
-      <span style="font-size:13px;color:var(--color-text);flex:1">${item.item_name}</span>
-      <div style="display:flex;align-items:center;gap:8px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--color-border);flex-wrap:wrap;gap:8px">
+      <span style="font-size:13px;color:var(--color-text);min-width:140px;flex:1">${item.item_name}</span>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+        <div style="display:flex;align-items:center;gap:3px">
+          <span style="font-size:12px;color:var(--color-text-muted)">₹</span>
+          <input type="number" value="${priceVal}" 
+                 onchange="updateItemPriceAction('${safeName}', this.value)"
+                 style="font-size:12px;padding:4px 6px;border-radius:6px;width:55px;background:var(--color-surface-3);border:1px solid var(--color-border);color:var(--color-text);text-align:right">
+        </div>
         <select onchange="moveItemToCategory('${safeName}', this.value, '${category}')"
-                style="font-size:12px;padding:4px 8px;border-radius:6px;background:var(--color-surface-2);border:1px solid var(--color-border);color:var(--color-text);cursor:pointer">
+                style="font-size:12px;padding:4px 6px;border-radius:6px;background:var(--color-surface-2);border:1px solid var(--color-border);color:var(--color-text);cursor:pointer;max-width:110px">
           ${catOptions}
         </select>
         <button onclick="deleteMenuItemAction('${safeName}', '${category}')"
@@ -883,6 +894,7 @@ async function renameCategoryAction() {
 async function addMenuItemAction() {
   const name     = document.getElementById('new-item-name')?.value?.trim();
   let category   = document.getElementById('new-item-category')?.value?.trim();
+  const price    = parseFloat(document.getElementById('new-item-price')?.value || '0');
   if (category === '__new__') {
     category = document.getElementById('new-item-category-custom')?.value?.trim();
   }
@@ -890,10 +902,11 @@ async function addMenuItemAction() {
     showToast('Please enter an item name and select/enter a category', 'error');
     return;
   }
-  const result = await API.addMenuItem(name, category);
+  const result = await API.addMenuItem(name, category, 0, price);
   if (result && result.ok) {
-    showToast(`"${name}" added to ${category.replace(/_/g,' ')}`, 'success');
+    showToast(`"${name}" added to ${category.replace(/_/g,' ')} (₹${price})`, 'success');
     document.getElementById('new-item-name').value = '';
+    document.getElementById('new-item-price').value = '0';
     const customInput = document.getElementById('new-item-category-custom');
     if (customInput) customInput.value = '';
     const selectEl = document.getElementById('new-item-category');
@@ -902,6 +915,20 @@ async function addMenuItemAction() {
     await loadMenuManagement();
   } else {
     showToast('Failed to add item — it may already exist', 'error');
+  }
+}
+
+async function updateItemPriceAction(itemName, price) {
+  const p = parseFloat(price);
+  if (isNaN(p) || p < 0) {
+    showToast('Please enter a valid non-negative price', 'error');
+    return;
+  }
+  const result = await API.updateItemPrice(itemName, p);
+  if (result && result.ok) {
+    showToast(`✅ "${itemName}" price updated to ₹${p}`, 'success');
+  } else {
+    showToast('Failed to update price', 'error');
   }
 }
 
@@ -915,3 +942,4 @@ async function deleteMenuItemAction(itemName, category) {
     showToast('Failed to delete item', 'error');
   }
 }
+
