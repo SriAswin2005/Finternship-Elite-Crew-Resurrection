@@ -250,20 +250,39 @@ Example output:
 
 def _parse_response(resp_data: dict) -> list:
     """Extract and parse the JSON array from a Gemini API response."""
-    text_res = resp_data['candidates'][0]['content']['parts'][0]['text'].strip()
+    if 'error' in resp_data:
+        raise ValueError(f"API Error: {resp_data['error'].get('message', resp_data['error'])}")
+
+    candidates = resp_data.get('candidates')
+    if not candidates:
+        raise ValueError(f"No candidates. Resp: {json.dumps(resp_data)[:200]}")
+
+    candidate = candidates[0]
+    content = candidate.get('content')
+    if not content:
+        reason = candidate.get('finishReason', 'Unknown')
+        raise ValueError(f"Blocked by safety or other reason. FinishReason: {reason}")
+
+    parts = content.get('parts')
+    if not parts or not parts[0].get('text'):
+        raise ValueError("No text in candidate content parts")
+
+    text_res = parts[0]['text'].strip()
     print(f"[gemini_ocr] Raw response (first 400 chars):\n{text_res[:400]}")
 
     # Strip markdown fences if present
     text_res = re.sub(r'^```(?:json)?\s*', '', text_res)
     text_res = re.sub(r'\s*```\s*$', '', text_res.strip())
 
-    items = json.loads(text_res)
+    try:
+        items = json.loads(text_res)
+    except Exception as e:
+        raise ValueError(f"JSON decode failed: {str(e)[:100]}. Text was: {text_res[:100]}")
+
     if not isinstance(items, list):
-        raise ValueError(f"Expected JSON array, got {type(items).__name__}")
+        raise ValueError(f"Expected list, got {type(items).__name__}")
 
     print(f"[gemini_ocr] Extracted {len(items)} items")
-    for it in items:
-        print(f"  {it}")
     return items
 
 

@@ -340,42 +340,75 @@ def dashboard_summary():
 
 
 @dash_router.get('/revenue-trend')
-def revenue_trend(days: int = Query(default=30, ge=1, le=365)):
-    """Daily gross revenue for the last N days."""
-    conn      = _conn()
-    cutoff    = (get_today() - timedelta(days=days)).isoformat()
-    rows      = conn.execute(
-        'SELECT date, ROUND(SUM(gross_revenue), 2) AS revenue '
-        'FROM daily_sales WHERE date >= ? '
-        'GROUP BY date ORDER BY date ASC',
-        (cutoff,)
-    ).fetchall()
+def revenue_trend(
+    days: Optional[int] = Query(default=None),
+    start_date: Optional[str] = Query(default=None),
+    end_date: Optional[str] = Query(default=None)
+):
+    """Daily gross revenue for a date range or the last N days."""
+    conn = _conn()
+    if start_date and end_date:
+        rows = conn.execute(
+            'SELECT date, ROUND(SUM(gross_revenue), 2) AS revenue '
+            'FROM daily_sales WHERE date >= ? AND date <= ? '
+            'GROUP BY date ORDER BY date ASC',
+            (start_date, end_date)
+        ).fetchall()
+    else:
+        d = days or 30
+        cutoff = (get_today() - timedelta(days=d)).isoformat()
+        rows = conn.execute(
+            'SELECT date, ROUND(SUM(gross_revenue), 2) AS revenue '
+            'FROM daily_sales WHERE date >= ? '
+            'GROUP BY date ORDER BY date ASC',
+            (cutoff,)
+        ).fetchall()
     conn.close()
     return {
-        'days': days,
+        'start_date': start_date,
+        'end_date': end_date,
         'series': [{'date': r[0], 'revenue': float(r[1])} for r in rows],
     }
 
 
 @dash_router.get('/category-trends')
-def category_trends(days: int = Query(default=30, ge=1, le=365)):
-    """Revenue and qty by category for the last N days."""
+def category_trends(
+    days: Optional[int] = Query(default=None),
+    start_date: Optional[str] = Query(default=None),
+    end_date: Optional[str] = Query(default=None)
+):
+    """Revenue and qty by category for a date range or the last N days."""
     conn   = _conn()
-    cutoff = (get_today() - timedelta(days=days)).isoformat()
-    rows   = conn.execute(
-        'SELECT mi.category, '
-        '       ROUND(SUM(ds.gross_revenue), 2) AS revenue, '
-        '       SUM(ds.qty_sold) AS qty '
-        'FROM daily_sales ds '
-        'LEFT JOIN menu_items mi ON ds.item_name = mi.item_name '
-        'WHERE ds.date >= ? '
-        'GROUP BY mi.category '
-        'ORDER BY revenue DESC',
-        (cutoff,)
-    ).fetchall()
+    if start_date and end_date:
+        rows = conn.execute(
+            'SELECT mi.category, '
+            '       ROUND(SUM(ds.gross_revenue), 2) AS revenue, '
+            '       SUM(ds.qty_sold) AS qty '
+            'FROM daily_sales ds '
+            'LEFT JOIN menu_items mi ON ds.item_name = mi.item_name '
+            'WHERE ds.date >= ? AND ds.date <= ? '
+            'GROUP BY mi.category '
+            'ORDER BY revenue DESC',
+            (start_date, end_date)
+        ).fetchall()
+    else:
+        d = days or 30
+        cutoff = (get_today() - timedelta(days=d)).isoformat()
+        rows = conn.execute(
+            'SELECT mi.category, '
+            '       ROUND(SUM(ds.gross_revenue), 2) AS revenue, '
+            '       SUM(ds.qty_sold) AS qty '
+            'FROM daily_sales ds '
+            'LEFT JOIN menu_items mi ON ds.item_name = mi.item_name '
+            'WHERE ds.date >= ? '
+            'GROUP BY mi.category '
+            'ORDER BY revenue DESC',
+            (cutoff,)
+        ).fetchall()
     conn.close()
     return {
-        'days': days,
+        'start_date': start_date,
+        'end_date': end_date,
         'categories': [
             {'category': r[0] or 'other', 'revenue': float(r[1]), 'qty': int(r[2])}
             for r in rows
@@ -654,21 +687,33 @@ def log_sales(entries: List[SaleEntry]):
 @sales_router.get('/trends')
 def item_trend(
     item: str = Query(..., description='Item name to get trend for'),
-    days: int = Query(default=30, ge=1, le=180),
+    days: Optional[int] = Query(default=None),
+    start_date: Optional[str] = Query(default=None),
+    end_date: Optional[str] = Query(default=None),
 ):
-    """Daily qty_sold trend for a specific item over the last N days."""
+    """Daily qty_sold trend for a specific item over a range or last N days."""
     conn   = _conn()
-    cutoff = (get_today() - timedelta(days=days)).isoformat()
-    rows   = conn.execute(
-        'SELECT date, SUM(qty_sold) AS qty '
-        'FROM daily_sales WHERE item_name = ? AND date >= ? '
-        'GROUP BY date ORDER BY date ASC',
-        (item, cutoff)
-    ).fetchall()
+    if start_date and end_date:
+        rows = conn.execute(
+            'SELECT date, SUM(qty_sold) AS qty '
+            'FROM daily_sales WHERE item_name = ? AND date >= ? AND date <= ? '
+            'GROUP BY date ORDER BY date ASC',
+            (item, start_date, end_date)
+        ).fetchall()
+    else:
+        d = days or 30
+        cutoff = (get_today() - timedelta(days=d)).isoformat()
+        rows = conn.execute(
+            'SELECT date, SUM(qty_sold) AS qty '
+            'FROM daily_sales WHERE item_name = ? AND date >= ? '
+            'GROUP BY date ORDER BY date ASC',
+            (item, cutoff)
+        ).fetchall()
     conn.close()
     return {
         'item': item,
-        'days': days,
+        'start_date': start_date,
+        'end_date': end_date,
         'series': [{'date': r[0], 'qty': int(r[1])} for r in rows],
     }
 

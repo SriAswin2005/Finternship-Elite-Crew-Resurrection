@@ -6,15 +6,37 @@ let _trendsCharts = {};
 let _activeTab = 'revenue';
 
 function renderTrends(container) {
+  // Compute default dates (start_date = 90 days ago, end_date = today)
+  const today = new Date();
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000);
+  const formatDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const defaultStart = formatDate(ninetyDaysAgo);
+  const defaultEnd = formatDate(today);
+
   container.innerHTML = `
     <div class="screen">
       <div class="screen-title" style="margin-bottom:12px;">Analytics</div>
 
       <!-- Tab Row -->
-      <div class="tab-row">
+      <div class="tab-row" style="margin-bottom:12px">
         <button class="tab-btn active" id="tab-revenue" onclick="switchTab('revenue', this)">📈 Revenue</button>
         <button class="tab-btn" id="tab-category" onclick="switchTab('category', this)">🏷️ Categories</button>
         <button class="tab-btn" id="tab-item" onclick="switchTab('item', this)">🔍 Item Deep Dive</button>
+      </div>
+
+      <!-- Date Range Selector -->
+      <div class="card" style="padding:12px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;border:1px solid var(--color-border);background:var(--color-surface-2)">
+        <div style="font-size:12px;font-weight:700;color:var(--color-text);letter-spacing:0.05em">FILTER RANGE:</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <label style="font-size:11px;color:var(--color-text-dim);font-weight:600">FROM</label>
+          <input type="date" id="trends-start-date" class="api-key-input" style="padding:6px 10px;font-size:12px;max-width:130px" value="${defaultStart}">
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <label style="font-size:11px;color:var(--color-text-dim);font-weight:600">TO</label>
+          <input type="date" id="trends-end-date" class="api-key-input" style="padding:6px 10px;font-size:12px;max-width:130px" value="${defaultEnd}">
+        </div>
+        <button class="btn btn-primary" onclick="applyTrendsFilter()" style="padding:6px 12px;font-size:12px">Apply</button>
+        <button class="btn btn-ghost" onclick="resetTrendsFilter('${defaultStart}', '${defaultEnd}')" style="padding:6px 12px;font-size:12px">Reset</button>
       </div>
 
       <!-- Revenue Tab -->
@@ -22,7 +44,7 @@ function renderTrends(container) {
         <!-- Summary cards -->
         <div class="stat-row" style="margin-bottom:10px;">
           <div class="stat-card card">
-            <div class="stat-label">45-Day Revenue ${infoTip('totalRevenue45')}</div>
+            <div class="stat-label" id="trends-revenue-label">Revenue ${infoTip('totalRevenue45')}</div>
             <div class="stat-value primary" id="total-revenue-val">₹—</div>
           </div>
           <div class="stat-card card">
@@ -43,7 +65,7 @@ function renderTrends(container) {
 
         <!-- 30-Day trend -->
         <div class="card chart-card">
-          <div class="card-title">30-Day Revenue</div>
+          <div class="card-title" id="revenue-trend-title">Revenue Trend</div>
           <canvas id="trend-chart-30" height="200"></canvas>
         </div>
 
@@ -102,31 +124,68 @@ function renderTrends(container) {
   loadItemSelectorOptions();
 }
 
-async function loadRevenueTrendsData() {
-  // Request 90 days; filter to what actually has data
-  let trendData = await API.getRevenueTrend(90);
-  if (!trendData || !trendData.length) {
-    // Fall back to mock if absolutely nothing returned
-    trendData = await API.getRevenueTrend(180);
+function getSelectedDateRange() {
+  const startEl = document.getElementById('trends-start-date');
+  const endEl = document.getElementById('trends-end-date');
+  if (startEl && endEl && startEl.value && endEl.value) {
+    return { startDate: startEl.value, endDate: endEl.value };
   }
+  return null;
+}
+
+async function applyTrendsFilter() {
+  showToast('Applying date filter...', '');
+  await loadRevenueTrendsData();
+  await loadCategoryData();
+  const selector = document.getElementById('item-selector');
+  if (selector && selector.value) {
+    await loadItemTrend();
+  }
+}
+
+async function resetTrendsFilter(defaultStart, defaultEnd) {
+  const startEl = document.getElementById('trends-start-date');
+  const endEl = document.getElementById('trends-end-date');
+  if (startEl) startEl.value = defaultStart;
+  if (endEl) endEl.value = defaultEnd;
+  window.memCache = {};
+  await applyTrendsFilter();
+}
+
+async function loadRevenueTrendsData() {
+  const range = getSelectedDateRange() || 90;
+  let trendData = await API.getRevenueTrend(range);
   if (trendData && trendData.length) {
     renderTrend30(trendData);
     renderSummaryStats(trendData);
     renderDOWChart(trendData);
+  } else {
+    // Clear display if no data
+    setIf('total-revenue-val', '₹0');
+    setIf('avg-daily-rev', '₹0');
+    setIf('best-day-val', '₹0');
+    setIf('trends-revenue-label', `0-Day Revenue ${infoTip('totalRevenue45')}`);
+    destroyChart('trend30');
+    destroyChart('dow');
   }
 }
 
 function renderSummaryStats(data) {
   const revenues = data.map(d => d.revenue || d.total_revenue || 0);
   const total = revenues.reduce((a, b) => a + b, 0);
-  const avg = total / revenues.length;
-  const best = Math.max(...revenues);
+  const avg = total / (revenues.length || 1);
+  const best = revenues.length ? Math.max(...revenues) : 0;
 
   const fmtRev = v => `₹${Math.round(v).toLocaleString('en-IN')}`;
 
   setIf('total-revenue-val', fmtRev(total));
   setIf('avg-daily-rev', fmtRev(avg));
   setIf('best-day-val', fmtRev(best));
+
+  const labelEl = document.getElementById('trends-revenue-label');
+  if (labelEl) {
+    labelEl.innerHTML = `${data.length}-Day Revenue ${infoTip('totalRevenue45')}`;
+  }
 }
 
 function renderTrend30(data) {
@@ -216,8 +275,15 @@ function renderDOWChart(data) {
 }
 
 async function loadCategoryData() {
-  const data = await API.getCategoryTrends();
-  if (!data || !data.length) return;
+  const range = getSelectedDateRange() || 90;
+  const data = await API.getCategoryTrends(range);
+  if (!data || !data.length) {
+    // Clear graphs if no category data
+    destroyChart('catRev');
+    destroyChart('catQty');
+    setIf('total-units-val', '0');
+    return;
+  }
 
   const sorted = [...data].sort((a, b) => b.revenue - a.revenue);
   const CAT_COLORS = {
@@ -309,13 +375,15 @@ async function loadItemTrend() {
   destroyChart('itemTrend');
 
   // getItemTrend returns { item, days, series: [...] }
-  const resp = await API.getItemTrend(item, 90);
+  const range = getSelectedDateRange() || 90;
+  const resp = await API.getItemTrend(item, range);
   const data = resp?.series || [];
 
   if (!data.length) {
+    const rangeLabel = range.startDate ? `${range.startDate} to ${range.endDate}` : 'selected range';
     document.getElementById('item-empty').innerHTML = `
       <div class="empty-state-icon">📉</div>
-      No sales data for "${item}" in the last 90 days.`;
+      No sales data for "${item}" in the ${rangeLabel}.`;
     return;
   }
 

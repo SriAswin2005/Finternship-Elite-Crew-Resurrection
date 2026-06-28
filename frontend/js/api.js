@@ -152,11 +152,20 @@ const API = {
     return data || MOCK.dashboard;
   },
 
-  getRevenueTrend: async (days = 30) => {
+  getRevenueTrend: async (params = 30) => {
     if (USE_MOCK) return MOCK.trends.revenue;
-    const key = `rev_trend_${days}`;
+    let url = '/dashboard/revenue-trend';
+    let key = 'rev_trend_30';
+    if (params && typeof params === 'object') {
+      const { startDate, endDate } = params;
+      url += `?start_date=${startDate}&end_date=${endDate}`;
+      key = `rev_trend_${startDate}_${endDate}`;
+    } else {
+      url += `?days=${params}`;
+      key = `rev_trend_${params}`;
+    }
     if (window.memCache[key]) return window.memCache[key];
-    const data = await apiFetch(`/dashboard/revenue-trend?days=${days}`);
+    const data = await apiFetch(url);
     const result = data?.series || MOCK.trends.revenue;
     if (data) window.memCache[key] = result;
     return result;
@@ -192,17 +201,33 @@ const API = {
     return data;
   },
 
-  getItemTrend: async (item, days = 30) => {
+  getItemTrend: async (item, params = 30) => {
     if (USE_MOCK) return null;
-    const data = await apiFetch(`/sales/trends?item=${encodeURIComponent(item)}&days=${days}`);
+    let url = `/sales/trends?item=${encodeURIComponent(item)}`;
+    if (params && typeof params === 'object') {
+      const { startDate, endDate } = params;
+      url += `&start_date=${startDate}&end_date=${endDate}`;
+    } else {
+      url += `&days=${params}`;
+    }
+    const data = await apiFetch(url);
     return data;
   },
 
-  getCategoryTrends: async (days = 90) => {
+  getCategoryTrends: async (params = 90) => {
     if (USE_MOCK) return MOCK.trends.categories;
-    const key = `cat_trends_${days}`;
+    let url = '/dashboard/category-trends';
+    let key = 'cat_trends_90';
+    if (params && typeof params === 'object') {
+      const { startDate, endDate } = params;
+      url += `?start_date=${startDate}&end_date=${endDate}`;
+      key = `cat_trends_${startDate}_${endDate}`;
+    } else {
+      url += `?days=${params}`;
+      key = `cat_trends_${params}`;
+    }
     if (window.memCache[key]) return window.memCache[key];
-    const data = await apiFetch(`/dashboard/category-trends?days=${days}`);
+    const data = await apiFetch(url);
     const result = data?.categories || MOCK.trends.categories;
     if (data) window.memCache[key] = result;
     return result;
