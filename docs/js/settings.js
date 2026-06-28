@@ -219,6 +219,55 @@ function renderSettings(container) {
         </div>
       </div>
 
+      <!-- Menu Management -->
+      <div class="settings-section">
+        <div class="settings-section-title">🍽️ Menu Management</div>
+        <div class="card" style="padding:16px">
+          <div style="font-size:13px;color:var(--color-text-muted);margin-bottom:14px;line-height:1.6">
+            View and edit item categories. Click a category to expand its items and reassign them.
+          </div>
+
+          <!-- Category list -->
+          <div id="menu-category-list" style="margin-bottom:16px"></div>
+
+          <!-- Rename category -->
+          <div style="border-top:1px solid var(--color-border);padding-top:14px;margin-top:4px">
+            <div style="font-size:12px;font-weight:600;letter-spacing:0.05em;color:var(--color-text-dim);margin-bottom:8px">RENAME A CATEGORY</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end">
+              <div>
+                <label style="font-size:11px;color:var(--color-text-dim);display:block;margin-bottom:4px;font-weight:600">CURRENT NAME</label>
+                <select id="rename-cat-old" class="api-key-input" style="padding:9px 10px"></select>
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--color-text-dim);display:block;margin-bottom:4px;font-weight:600">NEW NAME</label>
+                <input type="text" id="rename-cat-new" class="api-key-input" placeholder="e.g. starters" style="padding:9px 10px">
+              </div>
+              <button class="btn btn-primary" onclick="renameCategoryAction()" style="padding:9px 14px">Rename</button>
+            </div>
+          </div>
+
+          <!-- Add new item -->
+          <div style="border-top:1px solid var(--color-border);padding-top:14px;margin-top:14px">
+            <div style="font-size:12px;font-weight:600;letter-spacing:0.05em;color:var(--color-text-dim);margin-bottom:8px">ADD NEW ITEM TO MENU</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px">
+              <div>
+                <label style="font-size:11px;color:var(--color-text-dim);display:block;margin-bottom:4px;font-weight:600">ITEM NAME</label>
+                <input type="text" id="new-item-name" class="api-key-input" placeholder="e.g. Paneer 65" style="padding:9px 10px">
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--color-text-dim);display:block;margin-bottom:4px;font-weight:600">CATEGORY</label>
+                <select id="new-item-category" class="api-key-input" style="padding:9px 10px" onchange="handleNewItemCategoryChange(this.value)"></select>
+              </div>
+              <button class="btn btn-primary" onclick="addMenuItemAction()" style="padding:9px 14px">+ Add</button>
+            </div>
+            <div id="new-item-category-custom-container" style="display:none;margin-top:8px">
+              <label style="font-size:11px;color:var(--color-text-dim);display:block;margin-bottom:4px;font-weight:600">NEW CATEGORY NAME</label>
+              <input type="text" id="new-item-category-custom" class="api-key-input" placeholder="e.g. deserts" style="padding:9px 10px">
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Custom Local Events -->
       <div class="settings-section">
         <div class="settings-section-title">📅 Custom Local Events</div>
@@ -287,6 +336,7 @@ function renderSettings(container) {
 async function loadSettings() {
   renderCustomRules();
   loadCustomEventsList();
+  loadMenuManagement();
   const data = await API.getSettings();
   if (!data) {
     setEl('weather-status-badge', '❌ Backend offline');
@@ -705,5 +755,163 @@ async function removeCustomEvent(id) {
     if (window.memCache) delete window.memCache['dashboard'];
   } else {
     showToast('Failed to remove event', 'error');
+  }
+}
+
+// ── Menu Management ────────────────────────────────────────────────────────────
+let _allCategories = [];  // cached for dropdowns
+
+async function loadMenuManagement() {
+  const container = document.getElementById('menu-category-list');
+  if (!container) return;
+
+  container.innerHTML = `<div style="font-size:12px;color:var(--color-text-dim);padding:6px 0">Loading categories…</div>`;
+
+  const res = await API.getCategories();
+  _allCategories = res.categories || [];
+
+  if (!_allCategories.length) {
+    container.innerHTML = `<div style="font-size:12px;color:var(--color-text-dim)">No categories found.</div>`;
+    return;
+  }
+
+  // Populate rename dropdown and new-item category dropdown
+  const catOptions = _allCategories.map(c =>
+    `<option value="${c.category}">${c.category.replace(/_/g,' ')} (${c.item_count})</option>`
+  ).join('');
+  const renameSel = document.getElementById('rename-cat-old');
+  const newItemSel = document.getElementById('new-item-category');
+  if (renameSel) renameSel.innerHTML = catOptions;
+  if (newItemSel) newItemSel.innerHTML = catOptions + `<option value="__new__">[Create New Category...]</option>`;
+
+  // Render category accordion list
+  container.innerHTML = _allCategories.map(c => `
+    <div style="border:1px solid var(--color-border);border-radius:var(--radius-md);margin-bottom:6px;overflow:hidden">
+      <div onclick="toggleCategoryExpand('${c.category}')"
+           style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--color-surface-2);cursor:pointer;user-select:none">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:13px;font-weight:600;color:var(--color-text);text-transform:capitalize">${c.category.replace(/_/g,' ')}</span>
+          <span style="font-size:11px;color:var(--color-text-dim);background:var(--color-surface-3);padding:2px 8px;border-radius:999px">${c.item_count} items</span>
+        </div>
+        <span id="cat-arrow-${c.category}" style="font-size:11px;color:var(--color-text-dim)">▼</span>
+      </div>
+      <div id="cat-items-${c.category}" style="display:none;padding:10px 14px;background:var(--color-surface)">
+        <div id="cat-items-inner-${c.category}" style="font-size:12px;color:var(--color-text-dim)">Loading…</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function handleNewItemCategoryChange(val) {
+  const container = document.getElementById('new-item-category-custom-container');
+  if (container) {
+    container.style.display = (val === '__new__') ? 'block' : 'none';
+  }
+}
+
+async function toggleCategoryExpand(category) {
+  const panel = document.getElementById(`cat-items-${category}`);
+  const arrow  = document.getElementById(`cat-arrow-${category}`);
+  const inner  = document.getElementById(`cat-items-inner-${category}`);
+  if (!panel) return;
+
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (arrow) arrow.textContent = isOpen ? '▼' : '▲';
+  if (isOpen) return;
+
+  // Load items on first expand
+  inner.innerHTML = `<span style="color:var(--color-text-dim)">Loading…</span>`;
+  const res = await API.getMenuItems(category);
+  const items = res.items || [];
+
+  if (!items.length) {
+    inner.innerHTML = `<span style="color:var(--color-text-dim)">No items in this category.</span>`;
+    return;
+  }
+
+  const catOptions = _allCategories.map(c =>
+    `<option value="${c.category}" ${c.category === category ? 'selected' : ''}>${c.category.replace(/_/g,' ')}</option>`
+  ).join('');
+
+  inner.innerHTML = items.map(item => {
+    const safeName = item.item_name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--color-border)">
+      <span style="font-size:13px;color:var(--color-text);flex:1">${item.item_name}</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <select onchange="moveItemToCategory('${safeName}', this.value, '${category}')"
+                style="font-size:12px;padding:4px 8px;border-radius:6px;background:var(--color-surface-2);border:1px solid var(--color-border);color:var(--color-text);cursor:pointer">
+          ${catOptions}
+        </select>
+        <button onclick="deleteMenuItemAction('${safeName}', '${category}')"
+                style="background:none;border:none;color:var(--color-text-dim);cursor:pointer;font-size:14px;padding:2px 6px;display:flex;align-items:center;justify-content:center"
+                title="Delete item">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function moveItemToCategory(itemName, newCategory, currentCategory) {
+  if (newCategory === currentCategory) return;
+  const result = await API.updateItemCategory(itemName, newCategory);
+  if (result && result.ok) {
+    showToast(`"${itemName}" moved to ${newCategory.replace(/_/g,' ')}`, 'success');
+    await loadMenuManagement();
+  } else {
+    showToast('Failed to move item', 'error');
+  }
+}
+
+async function renameCategoryAction() {
+  const oldCat = document.getElementById('rename-cat-old')?.value?.trim();
+  const newCat = document.getElementById('rename-cat-new')?.value?.trim();
+  if (!oldCat || !newCat) {
+    showToast('Please select a category and enter a new name', 'error');
+    return;
+  }
+  const result = await API.renameCategory(oldCat, newCat);
+  if (result && result.ok) {
+    showToast(`Renamed to "${result.new_category}" — ${result.items_updated} items updated`, 'success');
+    document.getElementById('rename-cat-new').value = '';
+    await loadMenuManagement();
+  } else {
+    showToast('Failed to rename category', 'error');
+  }
+}
+
+async function addMenuItemAction() {
+  const name     = document.getElementById('new-item-name')?.value?.trim();
+  let category   = document.getElementById('new-item-category')?.value?.trim();
+  if (category === '__new__') {
+    category = document.getElementById('new-item-category-custom')?.value?.trim();
+  }
+  if (!name || !category) {
+    showToast('Please enter an item name and select/enter a category', 'error');
+    return;
+  }
+  const result = await API.addMenuItem(name, category);
+  if (result && result.ok) {
+    showToast(`"${name}" added to ${category.replace(/_/g,' ')}`, 'success');
+    document.getElementById('new-item-name').value = '';
+    const customInput = document.getElementById('new-item-category-custom');
+    if (customInput) customInput.value = '';
+    const selectEl = document.getElementById('new-item-category');
+    if (selectEl) selectEl.value = _allCategories[0]?.category || '';
+    handleNewItemCategoryChange(selectEl.value);
+    await loadMenuManagement();
+  } else {
+    showToast('Failed to add item — it may already exist', 'error');
+  }
+}
+
+async function deleteMenuItemAction(itemName, category) {
+  if (!confirm(`Are you sure you want to delete "${itemName}" from the menu?`)) return;
+  const result = await API.deleteMenuItem(itemName);
+  if (result && result.ok) {
+    showToast(`"${itemName}" deleted from menu`, 'success');
+    await loadMenuManagement();
+  } else {
+    showToast('Failed to delete item', 'error');
   }
 }
