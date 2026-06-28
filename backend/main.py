@@ -541,6 +541,21 @@ def add_menu_item(body: NewItemBody):
     return {'ok': True, 'item_name': name, 'category': category}
 
 
+@items_router.delete('/{item_name}')
+def delete_menu_item(item_name: str):
+    """Delete a menu item."""
+    conn = _conn()
+    result = conn.execute(
+        'DELETE FROM menu_items WHERE item_name = ?',
+        (item_name,)
+    )
+    conn.commit()
+    conn.close()
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail=f'Item "{item_name}" not found')
+    return {'ok': True, 'item_name': item_name}
+
+
 app.include_router(items_router)
 
 

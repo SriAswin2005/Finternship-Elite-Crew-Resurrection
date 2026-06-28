@@ -330,6 +330,12 @@ const API = {
       body: JSON.stringify({ item_name: itemName, category, avg_qty: avgQty })
     });
   },
+
+  deleteMenuItem: async (itemName) => {
+    return await apiFetch(`/items/${encodeURIComponent(itemName)}`, {
+      method: 'DELETE'
+    });
+  },
 };
 
 // ── LocalStorage cache helpers ─────────────────────────────────────────────────
