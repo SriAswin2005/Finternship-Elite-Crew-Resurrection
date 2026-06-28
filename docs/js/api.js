@@ -198,12 +198,13 @@ const API = {
     return data;
   },
 
-  getCategoryTrends: async () => {
+  getCategoryTrends: async (days = 90) => {
     if (USE_MOCK) return MOCK.trends.categories;
-    if (window.memCache['cat_trends']) return window.memCache['cat_trends'];
-    const data = await apiFetch('/dashboard/category-trends');
+    const key = `cat_trends_${days}`;
+    if (window.memCache[key]) return window.memCache[key];
+    const data = await apiFetch(`/dashboard/category-trends?days=${days}`);
     const result = data?.categories || MOCK.trends.categories;
-    if (data) window.memCache['cat_trends'] = result;
+    if (data) window.memCache[key] = result;
     return result;
   },
 
