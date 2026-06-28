@@ -72,22 +72,59 @@ if CONFIG_PATH != _BUNDLED_CONFIG and not os.path.exists(CONFIG_PATH) and os.pat
 
 # ── Render persistent-disk DB seeding ─────────────────────────────────────────
 # On Render, DB_PATH = /data/hotel_aditya.db (persistent disk).
-# Always copy the bundled DB if it's larger than what's on disk — this ensures
-# a freshly committed DB (with real data) always wins over a stale/empty one.
+#
+# SAFE MERGE STRATEGY — never overwrites live uploaded data:
+#   • Empty disk  → full copy from bundled (first-time deploy)
+#   • Disk has data → INSERT OR IGNORE from bundled into disk
+#     (adds any missing historical rows; live uploads are untouched)
 _BUNDLED_DB = os.path.join(_HERE, 'hotel_aditya.db')
 if DB_PATH != _BUNDLED_DB and os.path.exists(_BUNDLED_DB):
-    _disk_size    = os.path.getsize(DB_PATH)    if os.path.exists(DB_PATH)    else 0
-    _bundled_size = os.path.getsize(_BUNDLED_DB)
-    if _bundled_size > _disk_size:
+    _disk_exists = os.path.exists(DB_PATH)
+    _disk_size   = os.path.getsize(DB_PATH) if _disk_exists else 0
+
+    if _disk_size == 0:
+        # Disk is completely empty — safe to do a full copy (first deploy)
         try:
             os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
             _shutil.copy2(_BUNDLED_DB, DB_PATH)
-            print(f'[startup] Seeded DB: {_BUNDLED_DB} ({_bundled_size}B) → {DB_PATH} (was {_disk_size}B)')
+            print(f'[startup] Fresh disk — seeded DB from bundled ({os.path.getsize(_BUNDLED_DB)}B)')
         except Exception as _seed_err:
             print(f'[startup] DB seed failed ({_seed_err}), falling back to bundled DB')
             DB_PATH = _BUNDLED_DB
     else:
-        print(f'[startup] Persistent DB up-to-date ({_disk_size}B >= bundled {_bundled_size}B), skipping seed')
+        # Disk already has live data — MERGE bundled rows in without overwriting
+        try:
+            import sqlite3 as _sqlite3
+            _src_conn = _sqlite3.connect(_BUNDLED_DB)
+            _dst_conn = _sqlite3.connect(DB_PATH)
+            _dst_conn.execute('PRAGMA journal_mode=WAL')
+
+            # Merge daily_sales (UNIQUE on date+item_name — duplicates are silently skipped)
+            _sales_rows = _src_conn.execute(
+                'SELECT date, item_name, qty_sold, gross_revenue, source FROM daily_sales'
+            ).fetchall()
+            _dst_conn.executemany(
+                'INSERT OR IGNORE INTO daily_sales '
+                '(date, item_name, qty_sold, gross_revenue, source) VALUES (?,?,?,?,?)',
+                _sales_rows
+            )
+
+            # Merge menu_items (UNIQUE on item_name — new items from bundled get added)
+            _menu_rows = _src_conn.execute(
+                'SELECT item_name, category, avg_qty FROM menu_items'
+            ).fetchall()
+            _dst_conn.executemany(
+                'INSERT OR IGNORE INTO menu_items (item_name, category, avg_qty) VALUES (?,?,?)',
+                _menu_rows
+            )
+
+            _dst_conn.commit()
+            _src_conn.close()
+            _dst_conn.close()
+            print(f'[startup] Merged bundled DB into persistent disk '
+                  f'({len(_sales_rows)} sales rows, {len(_menu_rows)} menu rows — INSERT OR IGNORE, no overwrites)')
+        except Exception as _merge_err:
+            print(f'[startup] DB merge failed ({_merge_err}) — persistent disk DB used as-is')
 
 
 # ── Config helpers ─────────────────────────────────────────────────────────────

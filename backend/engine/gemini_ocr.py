@@ -26,7 +26,6 @@ PDF FORMAT (what the bills look like):
 """
 
 import os
-import csv
 import re
 import time
 import fitz
@@ -35,11 +34,6 @@ import json
 from datetime import date
 import urllib.request
 import urllib.error
-
-# ── Path to write extracted CSVs ───────────────────────────────────────────────
-_HERE = os.path.dirname(os.path.abspath(__file__))
-UPLOAD_CSV_PATH = os.path.join(_HERE, '..', '..', 'data_pipeline', 'uploaded_sales_data.csv')
-CSV_FIELDS = ['date', 'item_name', 'qty_sold', 'gross_revenue', 'source']
 
 # ── Model fallback chain (best to acceptable) ──────────────────────────────────
 MODELS = [
@@ -303,9 +297,7 @@ def process_pdf_with_gemini(file_bytes: bytes, api_key: str, known_items: list, 
         resp_data = _call_gemini_with_fallback(payload, api_key)
         batch_items = _parse_response(resp_data)
         all_items.extend(batch_items)
-
-    # Save to CSV for audit trail
-    _append_to_csv(all_items, sale_date)
+    print(f"[gemini_ocr] Total items extracted: {len(all_items)}")
     return all_items
 
 
@@ -318,32 +310,3 @@ def reset_model_index():
 def get_current_model() -> str:
     """Return the name of the currently active model."""
     return MODELS[APP_STATE["model_idx"]]
-
-
-# ── CSV audit trail ────────────────────────────────────────────────────────────
-
-def _append_to_csv(items: list, sale_date: str):
-    """Append extracted items to the uploaded_sales_data.csv audit file."""
-    try:
-        os.makedirs(os.path.dirname(UPLOAD_CSV_PATH), exist_ok=True)
-        file_exists = os.path.isfile(UPLOAD_CSV_PATH)
-
-        with open(UPLOAD_CSV_PATH, 'a', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=CSV_FIELDS)
-            if not file_exists:
-                writer.writeheader()
-            for item in items:
-                name = item.get('item_name', '')
-                qty = item.get('qty', 0)
-                gross = item.get('gross', 0.0)
-                if name and qty:
-                    writer.writerow({
-                        'date': sale_date,
-                        'item_name': name,
-                        'qty_sold': int(qty),
-                        'gross_revenue': float(gross),
-                        'source': 'gemini_ocr'
-                    })
-        print(f"[gemini_ocr] Appended {len(items)} rows to CSV: {UPLOAD_CSV_PATH}")
-    except Exception as e:
-        print(f"[gemini_ocr] Warning: could not write to CSV: {e}")
