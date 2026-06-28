@@ -296,7 +296,40 @@ const API = {
     const data = await apiFetch('/dashboard/actual-vs-predicted');
     if (data && window.memCache) window.memCache['dashboard_actual_vs_pred'] = data;
     return data;
-  }
+  },
+
+  // ── Menu Management ────────────────────────────────────────────────────────
+  getMenuItems: async (category = null) => {
+    const url = category ? `/items/?category=${encodeURIComponent(category)}` : '/items/';
+    const data = await apiFetch(url);
+    return data || { items: [], count: 0 };
+  },
+
+  getCategories: async () => {
+    const data = await apiFetch('/items/categories');
+    return data || { categories: [] };
+  },
+
+  updateItemCategory: async (itemName, newCategory) => {
+    return await apiFetch(`/items/${encodeURIComponent(itemName)}/category`, {
+      method: 'PATCH',
+      body: JSON.stringify({ category: newCategory })
+    });
+  },
+
+  renameCategory: async (oldCategory, newCategory) => {
+    return await apiFetch('/items/rename-category', {
+      method: 'POST',
+      body: JSON.stringify({ old_category: oldCategory, new_category: newCategory })
+    });
+  },
+
+  addMenuItem: async (itemName, category, avgQty = 0) => {
+    return await apiFetch('/items/add', {
+      method: 'POST',
+      body: JSON.stringify({ item_name: itemName, category, avg_qty: avgQty })
+    });
+  },
 };
 
 // ── LocalStorage cache helpers ─────────────────────────────────────────────────

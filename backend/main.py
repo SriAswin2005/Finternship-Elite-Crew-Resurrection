@@ -473,6 +473,74 @@ def list_categories():
     return {'categories': [{'category': r[0], 'item_count': r[1]} for r in rows]}
 
 
+class ItemCategoryUpdate(BaseModel):
+    category: str
+
+class RenameCategoryBody(BaseModel):
+    old_category: str
+    new_category: str
+
+class NewItemBody(BaseModel):
+    item_name: str
+    category: str
+    avg_qty: Optional[float] = 0.0
+
+@items_router.patch('/{item_name}/category')
+def update_item_category(item_name: str, body: ItemCategoryUpdate):
+    """Update the category of a single menu item."""
+    category = body.category.strip().lower().replace(' ', '_')
+    if not category:
+        raise HTTPException(status_code=400, detail='Category cannot be empty')
+    conn = _conn()
+    result = conn.execute(
+        'UPDATE menu_items SET category = ? WHERE item_name = ?',
+        (category, item_name)
+    )
+    conn.commit()
+    conn.close()
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail=f'Item "{item_name}" not found')
+    return {'ok': True, 'item_name': item_name, 'new_category': category}
+
+
+@items_router.post('/rename-category')
+def rename_category(body: RenameCategoryBody):
+    """Rename a category — updates ALL items in that category to the new name."""
+    old = body.old_category.strip().lower().replace(' ', '_')
+    new = body.new_category.strip().lower().replace(' ', '_')
+    if not old or not new:
+        raise HTTPException(status_code=400, detail='Category names cannot be empty')
+    conn = _conn()
+    result = conn.execute(
+        'UPDATE menu_items SET category = ? WHERE LOWER(category) = ?',
+        (new, old)
+    )
+    conn.commit()
+    conn.close()
+    return {'ok': True, 'old_category': old, 'new_category': new, 'items_updated': result.rowcount}
+
+
+@items_router.post('/add')
+def add_menu_item(body: NewItemBody):
+    """Add a new item to the menu."""
+    name = body.item_name.strip()
+    category = body.category.strip().lower().replace(' ', '_')
+    if not name or not category:
+        raise HTTPException(status_code=400, detail='item_name and category are required')
+    conn = _conn()
+    try:
+        conn.execute(
+            'INSERT INTO menu_items (item_name, category, avg_qty) VALUES (?, ?, ?)',
+            (name, category, body.avg_qty or 0.0)
+        )
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=409, detail=f'Item already exists or error: {e}')
+    conn.close()
+    return {'ok': True, 'item_name': name, 'category': category}
+
+
 app.include_router(items_router)
 
 

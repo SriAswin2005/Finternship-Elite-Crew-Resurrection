@@ -182,10 +182,25 @@ Example rows:
   COOL DRINK 250 ML          33      660.00
   chi lolypop 6 pic          10    3,250.00
   MUTTON FRY PIECE BIRYANI    5    1,910.00
+  Paneer 65                   8    1,600.00
+  Chicken 65                 12    2,400.00
 
 == WHAT TO IGNORE ==
 Skip any lines that contain: "Hotel Aditya Grand", "Item-wise Sales", "Period:", "Printed:",
 "Total", "NoCash", "Discount", "CGST", "SGST", "Grand Total", column headers.
+
+== CRITICAL RULE — NUMBERS IN DISH NAMES ==
+IMPORTANT: Some dish names contain numbers as part of their name. These numbers are NOT the quantity.
+Dishes with numbers in their name (treat the full phrase as the item name):
+  "Paneer 65"      → item name is "Paneer 65",       qty is in the Qty column
+  "Chicken 65"     → item name is "Chicken 65",      qty is in the Qty column
+  "Gobi 65"        → item name is "Gobi 65",         qty is in the Qty column
+  "Baby Corn 65"   → item name is "Baby Corn 65",    qty is in the Qty column
+  "Fish 65"        → item name is "Fish 65",         qty is in the Qty column
+  "Mushroom 65"    → item name is "Mushroom 65",     qty is in the Qty column
+  "Chicken Lollipop 6 Pcs" → full name, qty is separate
+  "chi lolypop 6 pic"      → maps to "Chicken Lollipop 6 Pcs", qty is separate
+The quantity is ALWAYS the standalone integer in the Qty column of the table row — never the number embedded in the item name.
 
 == ITEM NAME NORMALIZATION ==
 Item names in the bill are often spelled inconsistently. You MUST map each extracted item
@@ -194,7 +209,7 @@ Common variations to handle:
   "MI.WATER .500ml" / "MIWATER .50Oml" / "MIWATER LT" / "MI.WATER 500ml"
   "chi lolypop 6 pic" / "Chicken Lolypop 6 Pcs" / "CHICKEN LOLYPOP 6 PC"
   "Butter Non" / "Bulter Non" / "butter non" (→ Butter Naan)
-  "PANNER Biryani" / "panner biryani" (→ Paneer Biryani)
+  "PANNER Biryani" / "panner biryani" / "Panner 65" (→ Paneer Biryani / Paneer 65)
   "Cashewnut Panner Biryani" / "Cashw nut Panner Biryani"
   "CDB FAMILLY PACK" / "CDB Family Pack"
   "SP CHICKEN BIRYANI" / "Sp Chicken Biryani"
@@ -211,6 +226,7 @@ Example output:
 [
   {{"item_name": "Chicken Dum Biryani", "qty": 16, "gross": 4128.00}},
   {{"item_name": "SP Chicken Biryani", "qty": 23, "gross": 6141.00}},
+  {{"item_name": "Paneer 65", "qty": 8, "gross": 1600.00}},
   {{"item_name": "Mi Water Lt", "qty": 56, "gross": 1120.00}}
 ]"""
 
