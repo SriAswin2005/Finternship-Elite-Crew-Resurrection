@@ -37,34 +37,10 @@ import urllib.error
 
 # ── Model fallback chain (best to acceptable) ──────────────────────────────────
 MODELS = [
-    # Gemini 3.5 Generation (Latest, highly optimized for coding/agentic tasks)
-    "gemini-3.5-pro",
     "gemini-3.5-flash",
-
-    # Gemini 3.1 Generation (High volume, cost efficient)
-    "gemini-3.1-pro",
-    "gemini-3.1-pro-preview",
-    "gemini-3.1-flash",
-    "gemini-3.1-flash-lite",
-
-    # Gemini 3.0 Family
-    "gemini-3.0-pro",
-    "gemini-3.0-flash",
-    "gemini-3-pro-preview",
-    "gemini-3-flash-preview",
-
-    # Gemini 2.5 Family
-    "gemini-2.5-pro",
     "gemini-2.5-flash",
+    "gemini-3.1-flash-lite",
     "gemini-2.5-flash-lite",
-
-    # Gemini 2.0 Family
-    "gemini-2.0-pro-exp-02-05",
-    "gemini-2.0-flash",
-
-    # Gemini 1.5 Family (Standard production fallbacks)
-    "gemini-1.5-pro",
-    "gemini-1.5-flash",
 ]
 
 RATE_LIMIT_WAIT_SECONDS  = 65   # wait when quota (429) hit; then try next model
