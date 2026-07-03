@@ -18,10 +18,10 @@ async function apiFetch(path, options = {}) {
     if (!(options.body instanceof FormData)) {
       defaultHeaders['Content-Type'] = 'application/json';
     }
+    const mergedHeaders = { ...defaultHeaders, ...(options.headers || {}) };
     const res = await fetch(`${BASE_URL}${path}`, {
-      headers: { ...defaultHeaders, ...(options.headers || {}) },
       ...options,
-      headers: { ...defaultHeaders, ...(options.headers || {}) }
+      headers: mergedHeaders
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
@@ -30,6 +30,7 @@ async function apiFetch(path, options = {}) {
     return null;
   }
 }
+
 
 // ── Mock Data (real Hotel Aditya Grand items from the CSV) ─────────────────────
 const MOCK = {

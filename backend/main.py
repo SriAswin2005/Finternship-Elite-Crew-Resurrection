@@ -253,10 +253,12 @@ app.add_middleware(
         'http://localhost:8000',
         'http://localhost:5500',
         'http://127.0.0.1:5500',
-        'https://harsha-mandala.github.io',          # GitHub Pages frontend
-        'https://finternship-elite-crew.onrender.com', # Render backend (self-requests)
-        '*',                                           # Fallback for any other origin
+        'https://harsha-mandala.github.io',              # Original GitHub Pages frontend
+        'https://sriaswin2005.github.io',                # GitHub Pages frontend (SriAswin2005)
+        'https://finternship-elite-crew.onrender.com',   # Render backend (legacy)
     ],
+    # Allow any Railway.app subdomain dynamically (covers auto-generated Railway URLs)
+    allow_origin_regex=r'https://.*\.railway\.app',
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
@@ -1370,12 +1372,16 @@ def get_settings():
 @settings_router.post('/')
 def save_settings(body: SettingsUpdate):
     """Save API key and related settings. When location changes, clears weather cache and re-fetches."""
-    updates: dict = {}
+    updates: dict = {}        # non-secret config values only (lat, lon, weather_source)
+    saved_keys: list = []     # track what was updated for the response
     location_changed = False
 
     if body.openweather_api_key is not None:
-        updates['openweather_api_key'] = body.openweather_api_key
+        # Store in runtime memory for this session
+        _RUNTIME_KEYS['openweather_api_key'] = body.openweather_api_key.strip()
+        # Only the non-secret flag goes to config.json
         updates['weather_source'] = 'real' if body.openweather_api_key.strip() else 'mock'
+        saved_keys.append('openweather_api_key')
 
         # Update weather service API key in memory
         try:
@@ -1385,9 +1391,9 @@ def save_settings(body: SettingsUpdate):
             print(f'[main] Could not update weather_service API key: {e}')
 
     if body.gemini_api_key is not None:
-        updates['gemini_api_key'] = body.gemini_api_key
-        # Store in session memory (lost on restart — set GEMINI_API_KEY env var on Render for persistence)
+        # Store in session memory (lost on restart — set GEMINI_API_KEY env var on Railway for persistence)
         _RUNTIME_KEYS['gemini_api_key'] = body.gemini_api_key.strip()
+        saved_keys.append('gemini_api_key')
         # Reset model index so we start fresh with the new key
         try:
             from engine.gemini_ocr import reset_model_index
@@ -1397,10 +1403,12 @@ def save_settings(body: SettingsUpdate):
 
     if body.latitude is not None:
         updates['latitude'] = body.latitude
+        saved_keys.append('latitude')
         location_changed = True
 
     if body.longitude is not None:
         updates['longitude'] = body.longitude
+        saved_keys.append('longitude')
         location_changed = True
 
     if updates:
@@ -1413,12 +1421,11 @@ def save_settings(body: SettingsUpdate):
             from engine import weather_service
             # Run synchronously (fast — just 1-2 API calls)
             weather_refresh_result = weather_service.refresh_weather_for_location()
-            # Also clear the dashboard cache key so next load gets fresh weather
             print(f'[main] Location updated → weather refreshed: {weather_refresh_result}')
         except Exception as e:
             print(f'[main] Could not refresh weather after location change: {e}')
 
-    resp = {'status': 'saved', 'updates': list(updates.keys())}
+    resp = {'status': 'saved', 'updates': saved_keys}
     if weather_refresh_result:
         resp['weather_refreshed'] = True
         resp['new_weather'] = weather_refresh_result.get('today')
@@ -1549,7 +1556,21 @@ app.include_router(weather_router)
 
 events_router = APIRouter(prefix='/events', tags=['Custom Events'])
 
-CUSTOM_EVENTS_PATH = os.path.join(_HERE, '..', 'data', 'custom_events.json')
+# Custom events file lives next to the DB so it's on the Railway persistent volume when deployed
+# On Railway: DB_PATH=/data/hotel_aditya.db -> CUSTOM_EVENTS_PATH=/data/custom_events.json
+# Locally:    DB_PATH=backend/hotel_aditya.db -> CUSTOM_EVENTS_PATH=backend/custom_events.json
+_DB_DIR = os.path.dirname(os.path.abspath(DB_PATH))
+CUSTOM_EVENTS_PATH = os.path.join(_DB_DIR, 'custom_events.json')
+
+# Seed from repo data/ directory if not present on volume yet
+_REPO_EVENTS_PATH = os.path.join(_HERE, '..', 'data', 'custom_events.json')
+if not os.path.exists(CUSTOM_EVENTS_PATH) and os.path.exists(_REPO_EVENTS_PATH):
+    try:
+        os.makedirs(_DB_DIR, exist_ok=True)
+        _shutil.copy2(_REPO_EVENTS_PATH, CUSTOM_EVENTS_PATH)
+        print(f'[startup] Seeded custom_events.json from repo data/')
+    except Exception as _ev_err:
+        print(f'[startup] Could not seed custom_events.json: {_ev_err}')
 
 def _load_custom_events() -> list:
     try:
